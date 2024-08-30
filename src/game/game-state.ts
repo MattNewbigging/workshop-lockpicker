@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 import { RenderPipeline } from "./render-pipeline";
 import { AssetManager } from "./asset-manager";
+import { addGui } from "../utils/utils";
 
 export class GameState {
   private renderPipeline: RenderPipeline;
@@ -22,7 +23,7 @@ export class GameState {
 
     this.controls = new OrbitControls(this.camera, this.renderPipeline.canvas);
     this.controls.enableDamping = true;
-    this.controls.target.set(0, 1, 0);
+    this.controls.target.set(0, 0, 0);
 
     this.scene.background = new THREE.Color("#1680AF");
 
@@ -31,9 +32,10 @@ export class GameState {
   }
 
   private setupCamera() {
-    this.camera.fov = 75;
+    this.camera.fov = 35;
     this.camera.far = 500;
-    this.camera.position.set(0, 1.5, 3);
+    this.camera.near = 0.1;
+    this.camera.position.set(0, 0, 0.2);
   }
 
   private setupLights() {
@@ -46,8 +48,24 @@ export class GameState {
   }
 
   private setupObjects() {
-    const box = this.assetManager.models.get("box");
-    this.scene.add(box);
+    const axesHelper = new THREE.AxesHelper(10);
+    this.scene.add(axesHelper);
+
+    const lockBody = this.assetManager.models.get("lock-body");
+    this.scene.add(lockBody);
+
+    const lockCylinder = this.assetManager.models.get("lock-cylinder");
+    this.scene.add(lockCylinder);
+
+    const lockpick = this.assetManager.models.get("lockpick");
+    lockpick.position.z = 0.004;
+    this.scene.add(lockpick);
+
+    const screwdriver = this.assetManager.models.get("screwdriver");
+    screwdriver.position.set(0, -0.005, 0.015);
+    screwdriver.rotateY(Math.PI / 3);
+    addGui(screwdriver);
+    this.scene.add(screwdriver);
   }
 
   private update = () => {

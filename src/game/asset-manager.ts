@@ -23,10 +23,9 @@ export class AssetManager {
   }
 
   load(): Promise<void> {
-    const fbxLoader = new FBXLoader(this.loadingManager);
     const gltfLoader = new GLTFLoader(this.loadingManager);
 
-    this.loadModels(fbxLoader, gltfLoader);
+    this.loadModels(gltfLoader);
 
     return new Promise((resolve) => {
       this.loadingManager.onLoad = () => {
@@ -35,16 +34,27 @@ export class AssetManager {
     });
   }
 
-  private loadModels(fbxLoader: FBXLoader, gltfLoader: GLTFLoader) {
-    // box
-    const boxUrl = new URL("/models/box-small.glb", import.meta.url).href;
-    gltfLoader.load(boxUrl, (gltf) => {
-      gltf.scene.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.material.metalness = 0; // kenney assets require this to render correctly
-        }
-      });
-      this.models.set("box", gltf.scene);
+  private loadModels(gltfLoader: GLTFLoader) {
+    const lockBody = new URL("/models/lock_body.glb", import.meta.url).href;
+    gltfLoader.load(lockBody, (gltf) => {
+      this.models.set("lock-body", gltf.scene);
+    });
+
+    const lockCylinder = new URL("/models/lock_cylinder.glb", import.meta.url)
+      .href;
+    gltfLoader.load(lockCylinder, (gltf) => {
+      this.models.set("lock-cylinder", gltf.scene);
+    });
+
+    const lockpick = new URL("/models/lockpick.glb", import.meta.url).href;
+    gltfLoader.load(lockpick, (gltf) => {
+      this.models.set("lockpick", gltf.scene);
+    });
+
+    const screwdriver = new URL("/models/screwdriver.glb", import.meta.url)
+      .href;
+    gltfLoader.load(screwdriver, (gltf) => {
+      this.models.set("screwdriver", gltf.scene);
     });
   }
 }

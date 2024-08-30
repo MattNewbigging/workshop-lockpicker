@@ -11,6 +11,9 @@
   border-left: 2px solid;
   border-bottom: 2px solid;
 
+  mask-image: linear-gradient(to bottom, #0005 50%, #000 50%);
+  mask-size: 100% 2px;
+
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   grid-template-rows: repeat(3, 1fr);
