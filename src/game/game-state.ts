@@ -58,6 +58,11 @@ export class GameState {
     const envMap = this.assetManager.textures.get("hdri");
     this.scene.environment = envMap;
     this.scene.background = envMap;
+    this.scene.backgroundRotation = new THREE.Euler(0, -Math.PI / 8, 0);
+    this.scene.environmentRotation = new THREE.Euler(0, -Math.PI / 8, 0);
+    this.scene.environmentIntensity = 0.5;
+    this.scene.backgroundIntensity = 0.5;
+    this.scene.backgroundBlurriness = 0.3;
 
     this.audioListener = new THREE.AudioListener();
     this.camera.add(this.audioListener);
@@ -99,12 +104,17 @@ export class GameState {
   }
 
   private setupLights() {
-    const ambientLight = new THREE.AmbientLight(undefined, 1);
-    this.scene.add(ambientLight);
+    //const ambientLight = new THREE.AmbientLight(undefined, 1);
+    //this.scene.add(ambientLight);
 
-    const directLight = new THREE.DirectionalLight(undefined, Math.PI);
-    directLight.position.copy(new THREE.Vector3(0.75, 1, 0.75).normalize());
-    this.scene.add(directLight);
+    // Fill light
+    const pointLight = new THREE.PointLight(0xffffff, 0.75);
+    pointLight.position.set(0.25, 0.25, 0.25);
+    this.scene.add(pointLight);
+
+    // const directLight = new THREE.DirectionalLight(undefined, Math.PI);
+    // directLight.position.copy(new THREE.Vector3(0.75, 1, 0.75).normalize());
+    // this.scene.add(directLight);
   }
 
   private setupAudio() {
