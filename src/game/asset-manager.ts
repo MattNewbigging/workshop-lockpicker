@@ -7,6 +7,7 @@ export class AssetManager {
   models = new Map();
   textures = new Map();
   animations = new Map();
+  audioBuffers = new Map();
 
   private loadingManager = new THREE.LoadingManager();
 
@@ -28,9 +29,11 @@ export class AssetManager {
     const fbxLoader = new FBXLoader(this.loadingManager);
     const textureLoader = new THREE.TextureLoader(this.loadingManager);
     const rgbeLoader = new RGBELoader(this.loadingManager);
+    const audioLoader = new THREE.AudioLoader(this.loadingManager);
 
     this.loadModels(gltfLoader, fbxLoader);
     this.loadTextures(textureLoader, rgbeLoader);
+    this.loadAudio(audioLoader);
 
     return new Promise((resolve) => {
       this.loadingManager.onLoad = () => {
@@ -92,5 +95,37 @@ export class AssetManager {
     loader.load(orm, (texture) => {
       this.textures.set("lock-orm", texture);
     });
+  }
+
+  private loadAudio(loader: THREE.AudioLoader) {
+    const pickMove = new URL(
+      "/audio/ui_lockpicking_pickmovement_03.wav",
+      import.meta.url
+    ).href;
+    loader.load(pickMove, (buffer) =>
+      this.audioBuffers.set("pick-move", buffer)
+    );
+
+    const jam = new URL(
+      "/audio/Antique Lock Mechanism Movement B.wav",
+      import.meta.url
+    ).href;
+    loader.load(jam, (buffer) => {
+      this.audioBuffers.set("jam", buffer);
+    });
+
+    const unlock = new URL(
+      "/audio/Antique Lock Normal Unlock.wav",
+      import.meta.url
+    ).href;
+    loader.load(unlock, (buffer) => this.audioBuffers.set("unlock", buffer));
+
+    const pickBreak = new URL("/audio/Lock Break.wav", import.meta.url).href;
+    loader.load(pickBreak, (buffer) =>
+      this.audioBuffers.set("pick-break", buffer)
+    );
+
+    const picking = new URL("/audio/Lock Picking.wav", import.meta.url).href;
+    loader.load(picking, (buffer) => this.audioBuffers.set("picking", buffer));
   }
 }
