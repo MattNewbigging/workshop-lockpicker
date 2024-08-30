@@ -13,6 +13,12 @@ export class GameState {
   private camera = new THREE.PerspectiveCamera();
   private controls: OrbitControls;
 
+  private pointer = new THREE.Vector2();
+  private raycaster = new THREE.Raycaster();
+  private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
+
+  private lock: THREE.Object3D;
+
   constructor(private assetManager: AssetManager) {
     this.setupCamera();
 
@@ -25,7 +31,13 @@ export class GameState {
     this.controls.enableDamping = true;
     this.controls.target.set(0, 0, 0);
 
-    this.scene.background = new THREE.Color("#1680AF");
+    const envMap = this.assetManager.textures.get("hdri");
+    this.scene.environment = envMap;
+    this.scene.background = envMap; // new THREE.Color("#1680AF");
+
+    // Lock
+    this.lock = this.setupLock();
+    this.scene.add(this.lock);
 
     // Start game
     this.update();
@@ -51,11 +63,11 @@ export class GameState {
     const axesHelper = new THREE.AxesHelper(10);
     this.scene.add(axesHelper);
 
-    const lockBody = this.assetManager.models.get("lock-body");
-    this.scene.add(lockBody);
+    // const lockBody = this.assetManager.models.get("lock-body");
+    // this.scene.add(lockBody);
 
-    const lockCylinder = this.assetManager.models.get("lock-cylinder");
-    this.scene.add(lockCylinder);
+    // const lockCylinder = this.assetManager.models.get("lock-cylinder");
+    // this.scene.add(lockCylinder);
 
     const lockpick = this.assetManager.models.get("lockpick");
     lockpick.position.z = 0.004;
@@ -68,6 +80,32 @@ export class GameState {
     this.scene.add(screwdriver);
   }
 
+  private setupLock() {
+    const { models, textures } = this.assetManager;
+
+    const lock = models.get("lock") as THREE.Object3D;
+    const albedo = textures.get("lock-albedo");
+    const normal = textures.get("lock-normal");
+    const orm = textures.get("lock-orm");
+    console.log(albedo);
+
+    const lockMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+    });
+
+    lock.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = lockMaterial;
+      }
+    });
+
+    return lock;
+  }
+
   private update = () => {
     requestAnimationFrame(this.update);
 
@@ -76,5 +114,18 @@ export class GameState {
     this.controls.update();
 
     this.renderPipeline.render(dt);
+  };
+
+  private onMouseMove = (event: MouseEvent) => {
+    // Ndc
+    this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+
+    const intersectPoint = this.raycaster.ray.intersectPlane(
+      this.castPlane,
+      new THREE.Vector3()
+    );
   };
 }
