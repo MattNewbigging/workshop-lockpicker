@@ -1,0 +1,33 @@
+@import "normalize.css";
+@import "@blueprintjs/core/lib/css/blueprint.css";
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+html {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+*::before,
+*::after,
+* {
+  box-sizing: inherit;
+}
+
+#root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+// So the canvas does not interrupt flow of other UI
+canvas {
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  inset: 0;
+}
