@@ -54,10 +54,10 @@ export class AssetManager {
       this.models.set("lockpick", gltf.scene);
     });
 
-    const screwdriver = new URL("/models/screwdriver.glb", import.meta.url)
+    const screwdriver = new URL("/models/screwdriver.fbx", import.meta.url)
       .href;
-    gltfLoader.load(screwdriver, (gltf) => {
-      this.models.set("screwdriver", gltf.scene);
+    fbxLoader.load(screwdriver, (group) => {
+      this.models.set("screwdriver", group);
     });
   }
 
@@ -71,29 +71,54 @@ export class AssetManager {
       this.textures.set("hdri", texture);
     });
 
-    const albedo = new URL(
+    const lockAlbedo = new URL(
       "/textures/lock_lp_Material _20_albedo.png",
       import.meta.url
     ).href;
-    loader.load(albedo, (texture) => {
+    loader.load(lockAlbedo, (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
       this.textures.set("lock-albedo", texture);
     });
 
-    const normal = new URL(
+    const lockNormal = new URL(
       "/textures/lock_lp_Material _20_normal.png",
       import.meta.url
     ).href;
-    loader.load(normal, (texture) => {
+    loader.load(lockNormal, (texture) => {
       this.textures.set("lock-normal", texture);
     });
 
-    const orm = new URL(
+    const lockOrm = new URL(
       "/textures/lock_lp_Material _20_ORM.png",
       import.meta.url
     ).href;
-    loader.load(orm, (texture) => {
+    loader.load(lockOrm, (texture) => {
       this.textures.set("lock-orm", texture);
+    });
+
+    const screwdriverAlbedo = new URL(
+      "/textures/screwdriver_lp_Material _20_albedo.png",
+      import.meta.url
+    ).href;
+    loader.load(screwdriverAlbedo, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.textures.set("screw-albedo", texture);
+    });
+
+    const screwdriverNormal = new URL(
+      "/textures/screwdriver_lp_Material _20_normal.png",
+      import.meta.url
+    ).href;
+    loader.load(screwdriverNormal, (texture) => {
+      this.textures.set("screw-normal", texture);
+    });
+
+    const screwdriverOrm = new URL(
+      "/textures/screwdriver_lp_Material _20_ORM.png",
+      import.meta.url
+    ).href;
+    loader.load(screwdriverOrm, (texture) => {
+      this.textures.set("screw-orm", texture);
     });
   }
 

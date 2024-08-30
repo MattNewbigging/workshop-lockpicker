@@ -155,6 +155,7 @@ export class GameState {
       aoMap: orm,
       roughnessMap: orm,
       metalnessMap: orm,
+      metalness: 1,
     });
 
     lock.traverse((child) => {
@@ -174,15 +175,36 @@ export class GameState {
   }
 
   private setupScrewdriver() {
-    const screwdriver = this.assetManager.models.get("screwdriver");
+    const { models, textures } = this.assetManager;
+
+    const screwdriver = models.get("screwdriver") as THREE.Object3D;
+    const albedo = textures.get("screw-albedo");
+    const normal = textures.get("screw-normal");
+    const orm = textures.get("screw-orm");
+
+    const screwMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+      metalness: 1,
+    });
+
+    screwdriver.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = screwMaterial;
+      }
+    });
+
     screwdriver.rotateY(Math.PI / 3);
-    screwdriver.rotation.z = -0.075;
+    screwdriver.rotation.z = -1.5;
     this.scene.add(screwdriver);
 
     // Parent to inner lock
     const inner = this.lock.getObjectByName("lock_cylinder_lp");
     inner?.add(screwdriver);
-    screwdriver.scale.multiplyScalar(100);
+    //screwdriver.scale.multiplyScalar(100);
     screwdriver.position.set(-0.2, -0.5, 1);
   }
 
@@ -238,7 +260,6 @@ export class GameState {
     if (this.pickMoveTimeout <= 0) {
       this.pickMoveTimeout = 5;
       this.playAudio("pick-move");
-      console.log("pick move");
     }
   };
 
