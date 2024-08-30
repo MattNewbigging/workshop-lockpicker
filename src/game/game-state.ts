@@ -63,12 +63,6 @@ export class GameState {
     const axesHelper = new THREE.AxesHelper(10);
     this.scene.add(axesHelper);
 
-    // const lockBody = this.assetManager.models.get("lock-body");
-    // this.scene.add(lockBody);
-
-    // const lockCylinder = this.assetManager.models.get("lock-cylinder");
-    // this.scene.add(lockCylinder);
-
     const lockpick = this.assetManager.models.get("lockpick");
     lockpick.position.z = 0.004;
     this.scene.add(lockpick);
@@ -102,6 +96,8 @@ export class GameState {
         child.material = lockMaterial;
       }
     });
+
+    console.log("lock", lock);
 
     return lock;
   }

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 
 export class AssetManager {
   models = new Map();
@@ -24,10 +25,11 @@ export class AssetManager {
 
   load(): Promise<void> {
     const gltfLoader = new GLTFLoader(this.loadingManager);
+    const fbxLoader = new FBXLoader(this.loadingManager);
     const textureLoader = new THREE.TextureLoader(this.loadingManager);
     const rgbeLoader = new RGBELoader(this.loadingManager);
 
-    this.loadModels(gltfLoader);
+    this.loadModels(gltfLoader, fbxLoader);
     this.loadTextures(textureLoader, rgbeLoader);
 
     return new Promise((resolve) => {
@@ -37,10 +39,11 @@ export class AssetManager {
     });
   }
 
-  private loadModels(gltfLoader: GLTFLoader) {
-    const lock = new URL("/models/lock.glb", import.meta.url).href;
-    gltfLoader.load(lock, (gltf) => {
-      this.models.set("lock", gltf.scene);
+  private loadModels(gltfLoader: GLTFLoader, fbxLoader: FBXLoader) {
+    const lock = new URL("/models/lock.fbx", import.meta.url).href;
+    fbxLoader.load(lock, (group) => {
+      group.scale.multiplyScalar(0.01);
+      this.models.set("lock", group);
     });
 
     const lockBody = new URL("/models/lock_body.glb", import.meta.url).href;
