@@ -46,17 +46,6 @@ export class AssetManager {
       this.models.set("lock", group);
     });
 
-    const lockBody = new URL("/models/lock_body.glb", import.meta.url).href;
-    gltfLoader.load(lockBody, (gltf) => {
-      this.models.set("lock-body", gltf.scene);
-    });
-
-    const lockCylinder = new URL("/models/lock_cylinder.glb", import.meta.url)
-      .href;
-    gltfLoader.load(lockCylinder, (gltf) => {
-      this.models.set("lock-cylinder", gltf.scene);
-    });
-
     const lockpick = new URL("/models/lockpick.glb", import.meta.url).href;
     gltfLoader.load(lockpick, (gltf) => {
       this.models.set("lockpick", gltf.scene);
