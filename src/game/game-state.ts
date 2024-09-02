@@ -5,6 +5,7 @@ import { RenderPipeline } from "./render-pipeline";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
+import { CameraManager } from "./camera-manager";
 
 /**
  * - entry animation; brings up the pick and screwdriver
@@ -36,10 +37,12 @@ export class GameState {
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
   private intersectDebug: THREE.Object3D;
+  private cameraManager: CameraManager;
 
   private lock: THREE.Object3D;
   private cylinder!: THREE.Object3D;
   private pick: THREE.Object3D;
+  private screwdriver?: THREE.Object3D;
 
   private applyForce = false;
 
@@ -50,6 +53,12 @@ export class GameState {
 
     this.setupLights();
     this.setupObjects();
+
+    this.cameraManager = new CameraManager(
+      this.camera,
+      new THREE.Vector3(),
+      0.25
+    );
 
     // this.controls = new OrbitControls(this.camera, this.renderPipeline.canvas);
     // this.controls.enableDamping = true;
@@ -211,6 +220,8 @@ export class GameState {
     screwdriver.rotation.z = -1.5;
     this.scene.add(screwdriver);
 
+    this.screwdriver = screwdriver;
+
     // Parent to inner lock
     const inner = this.lock.getObjectByName("lock_cylinder_lp");
     inner?.add(screwdriver);
@@ -229,6 +240,10 @@ export class GameState {
 
     this.updateLock(dt);
 
+    this.updateScrewdriver(dt);
+
+    this.cameraManager.update(dt, this.pointer);
+
     this.renderPipeline.render(dt);
   };
 
@@ -245,6 +260,14 @@ export class GameState {
 
     // Update move timers
     this.pickMoveTimeout -= dt;
+  }
+
+  private updateScrewdriver(dt: number) {
+    if (!this.screwdriver) return;
+
+    this.screwdriver.rotation.y = Math.PI / 4 + this.pointer.x * 0.1;
+    this.screwdriver.rotation.z = Math.PI / 2 + this.pointer.y * 0.25;
+    this.screwdriver.rotation.x = this.pointer.y * -0.1;
   }
 
   private updateLock(dt: number) {
