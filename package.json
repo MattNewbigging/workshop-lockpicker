@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@blueprintjs/core": "^4.17.8",
+    "@tweenjs/tween.js": "^25.0.0",
     "lil-gui": "^0.18.1",
     "mobx": "^6.8.0",
     "mobx-react-lite": "^3.4.3",

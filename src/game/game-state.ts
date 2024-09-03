@@ -39,6 +39,8 @@ export interface Lock {
   length: number;
 }
 
+const HALF_PI = Math.PI / 2;
+
 export class GameState {
   private keyboardListener = new KeyboardListener();
 
@@ -92,13 +94,7 @@ export class GameState {
 
     this.currentLock = this.getNextLock();
 
-    // Listeners
-    window.addEventListener("mousemove", this.onMouseMove);
-    window.addEventListener("mousedown", this.onMouseDown);
-    window.addEventListener("mouseup", this.onMouseUp);
-    this.keyboardListener.on(" ", this.onPressSpace);
-    this.keyboardListener.onRelease(" ", this.onReleaseSpace);
-    this.keyboardListener.on("d", this.toggleDebugUi);
+    // Start the entry animation
 
     // Start game
     this.update();
@@ -230,7 +226,7 @@ export class GameState {
     // Same lock level for now
     const level = LockLevel.EASY;
     const maxSize = Math.PI;
-    const size = Math.PI / 2;
+    const size = HALF_PI;
 
     const start = Math.random() * (maxSize - size);
     const length = size;
@@ -240,6 +236,24 @@ export class GameState {
       start,
       length,
     };
+  }
+
+  private addListeners() {
+    window.addEventListener("mousemove", this.onMouseMove);
+    window.addEventListener("mousedown", this.onMouseDown);
+    window.addEventListener("mouseup", this.onMouseUp);
+    this.keyboardListener.on(" ", this.onPressSpace);
+    this.keyboardListener.onRelease(" ", this.onReleaseSpace);
+    this.keyboardListener.on("d", this.toggleDebugUi);
+  }
+
+  private removeListeners() {
+    window.removeEventListener("mousemove", this.onMouseMove);
+    window.removeEventListener("mousedown", this.onMouseDown);
+    window.removeEventListener("mouseup", this.onMouseUp);
+    this.keyboardListener.off(" ", this.onPressSpace);
+    this.keyboardListener.offRelease(" ", this.onReleaseSpace);
+    this.keyboardListener.off("d", this.toggleDebugUi);
   }
 
   private update = () => {
@@ -279,8 +293,8 @@ export class GameState {
       Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
     this.pick.rotation.z = THREE.MathUtils.clamp(
       this.pick.rotation.z,
-      -Math.PI / 2,
-      Math.PI / 2
+      -HALF_PI,
+      HALF_PI
     );
 
     // Update move timers
@@ -296,14 +310,34 @@ export class GameState {
   }
 
   private updateLock(dt: number) {
-    // Turn lock when applying force
-    if (this.applyForce) {
-      const newRot = this.cylinder.rotation.z - dt * 0.8;
-      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -Math.PI / 2, 0);
-    } else {
-      // Lock returns to normal position
+    // If not applying any force, return lock to normal position
+    if (!this.applyForce) {
       const newRot = this.cylinder.rotation.z + dt * 2;
-      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -Math.PI / 2, 0);
+      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+
+      return;
+    }
+
+    // We're applying force, but is the pick in the pick zone?
+    // The pick moves left-to-right from halfPi to -halfPi
+    const pickRot = this.pick.rotation.z;
+    const afterStart = pickRot < HALF_PI - this.currentLock.start;
+    const beforeEnd =
+      pickRot > HALF_PI - this.currentLock.start - this.currentLock.length;
+
+    if (afterStart && beforeEnd) {
+      // In the pick zone, turn the lock
+      const newRot = this.cylinder.rotation.z - dt * 0.8;
+      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+    } else {
+      // Not in the pick zone, wiggle the lock
+    }
+
+    // Have we unlocked it?
+    if (this.cylinder.rotation.z === -HALF_PI) {
+      this.playAudio("unlock");
+      // No longer applying force/listening for that input
+      // Play the entry animation
     }
   }
 
