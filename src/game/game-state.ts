@@ -3,6 +3,7 @@ import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { makeAutoObservable, observable } from "mobx";
 
 /**
  * States:
@@ -12,9 +13,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
  */
 
 export enum LockLevel {
-  EASY,
-  AVERAGE,
-  HARD,
+  VERY_EASY = "Very Easy",
+  EASY = "Easy",
+  AVERAGE = "Average",
+  HARD = "Hard",
+  VERY_HARD = "Very Hard",
 }
 
 export interface Lock {
@@ -26,6 +29,9 @@ export interface Lock {
 const HALF_PI = Math.PI / 2;
 
 export class GameState {
+  @observable currentLock!: Lock;
+  @observable lockpicks = 100;
+
   private keyboardListener = new KeyboardListener();
 
   private renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -44,7 +50,6 @@ export class GameState {
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
 
-  private currentLock!: Lock;
   private cylinder!: THREE.Object3D;
   private lockpick!: THREE.Object3D;
   private screwdriver!: THREE.Object3D;
@@ -56,6 +61,8 @@ export class GameState {
   // private orbitControls: OrbitControls;
 
   constructor(private assetManager: AssetManager) {
+    makeAutoObservable(this);
+
     this.setupScene();
     this.setupAudio();
     this.setupObjects();
@@ -154,10 +161,23 @@ export class GameState {
   }
 
   private getRandomLock(): Lock {
-    // Same lock level for now
-    const level = LockLevel.EASY;
+    const rnd = Math.floor(Math.random() * 5);
+    const level = [
+      LockLevel.VERY_EASY,
+      LockLevel.EASY,
+      LockLevel.AVERAGE,
+      LockLevel.HARD,
+      LockLevel.VERY_HARD,
+    ][rnd];
+    const size = [
+      Math.PI / 4,
+      Math.PI / 7,
+      Math.PI / 10,
+      Math.PI / 20,
+      Math.PI / 36,
+    ][rnd];
+
     const maxSize = Math.PI;
-    const size = HALF_PI;
 
     const start = Math.random() * (maxSize - size);
     const length = size;
