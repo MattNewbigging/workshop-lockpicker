@@ -1,11 +1,9 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 import { RenderPipeline } from "./render-pipeline";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
-import { CameraManager } from "./camera-manager";
 
 /**
  * - entry animation; brings up the pick and screwdriver
@@ -16,6 +14,18 @@ import { CameraManager } from "./camera-manager";
  * ---- new pick entry anim
  * -- scredriver and lock inner turns while pick remains still
  *    (parent driver to inner lock, just rotate inner lock)
+ *
+ *
+ * Lockpicking logic:
+ *
+ * - need determine the size of the pick zone; hardcode sizes
+ * - do on scale of 0 to PI, subtract PI later when clamping rotation
+ * - left side = random number between 0 and PI subtract pick zone size
+ * - right side = left side + size
+ * - just checking if pick is > left side && < right side
+ *
+ * - debug:
+ * - use cylinder geometries!
  */
 
 export class GameState {
@@ -26,7 +36,9 @@ export class GameState {
 
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera();
-  //private controls: OrbitControls;
+  private cameraLength = 0.25;
+  private cameraTarget = new THREE.Vector3();
+  private cameraDir = new THREE.Vector3();
 
   private audioListener: THREE.AudioListener;
   private soundMap = new Map<string, THREE.Audio>();
@@ -37,7 +49,6 @@ export class GameState {
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
   private intersectDebug: THREE.Object3D;
-  private cameraManager: CameraManager;
 
   private lock: THREE.Object3D;
   private cylinder!: THREE.Object3D;
@@ -52,17 +63,6 @@ export class GameState {
     this.renderPipeline = new RenderPipeline(this.scene, this.camera);
 
     this.setupLights();
-    this.setupObjects();
-
-    this.cameraManager = new CameraManager(
-      this.camera,
-      new THREE.Vector3(),
-      0.25
-    );
-
-    // this.controls = new OrbitControls(this.camera, this.renderPipeline.canvas);
-    // this.controls.enableDamping = true;
-    // this.controls.target.set(0, 0.01, 0);
 
     const envMap = this.assetManager.textures.get("hdri");
     this.scene.environment = envMap;
@@ -113,17 +113,10 @@ export class GameState {
   }
 
   private setupLights() {
-    //const ambientLight = new THREE.AmbientLight(undefined, 1);
-    //this.scene.add(ambientLight);
-
     // Fill light
     const pointLight = new THREE.PointLight(0xffffff, 0.75);
     pointLight.position.set(0.25, 0.25, 0.25);
     this.scene.add(pointLight);
-
-    // const directLight = new THREE.DirectionalLight(undefined, Math.PI);
-    // directLight.position.copy(new THREE.Vector3(0.75, 1, 0.75).normalize());
-    // this.scene.add(directLight);
   }
 
   private setupAudio() {
@@ -153,11 +146,6 @@ export class GameState {
   private playAudio(name: string) {
     const sound = this.soundMap.get(name);
     sound?.stop().play();
-  }
-
-  private setupObjects() {
-    const axesHelper = new THREE.AxesHelper(10);
-    this.scene.add(axesHelper);
   }
 
   private setupLock() {
@@ -225,7 +213,6 @@ export class GameState {
     // Parent to inner lock
     const inner = this.lock.getObjectByName("lock_cylinder_lp");
     inner?.add(screwdriver);
-    //screwdriver.scale.multiplyScalar(100);
     screwdriver.position.set(-0.2, -0.5, 1);
   }
 
@@ -234,18 +221,32 @@ export class GameState {
 
     const dt = this.clock.getDelta();
 
-    //this.controls.update();
-
     this.updatePick(dt);
 
     this.updateLock(dt);
 
     this.updateScrewdriver(dt);
 
-    this.cameraManager.update(dt, this.pointer);
+    //this.updateCamera();
 
     this.renderPipeline.render(dt);
   };
+
+  private updateCamera() {
+    const dir = this.cameraDir;
+
+    dir.x = -Math.sin(this.pointer.x);
+    dir.y = -Math.sin(this.pointer.y);
+    dir.multiplyScalar(0.1);
+
+    dir.z = 1.0;
+    dir.normalize();
+
+    dir.multiplyScalar(this.cameraLength);
+
+    this.camera.position.copy(dir);
+    this.camera.lookAt(this.cameraTarget);
+  }
 
   private updatePick(dt: number) {
     this.intersectDebug.position.copy(this.intersectPoint);
