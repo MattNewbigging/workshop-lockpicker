@@ -449,9 +449,8 @@ export class GameState {
       1,
       Math.sqrt(this.pointerDelta.lengthSq() * 25)
     );
-    const pitch = Math.min(1.1, 0.8 + pointerLength * 2);
+    const pitch = Math.min(1.1, 0.8 + pointerLength);
     pickMoveSound.setPlaybackRate(pitch);
-    console.log(pickMoveVolume);
     pickMoveSound.setVolume(pickMoveVolume);
   }
 
