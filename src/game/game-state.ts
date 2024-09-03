@@ -48,7 +48,6 @@ export class GameState {
   private raycaster = new THREE.Raycaster();
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
-  private intersectDebug: THREE.Object3D;
 
   private lock: THREE.Object3D;
   private cylinder!: THREE.Object3D;
@@ -59,19 +58,9 @@ export class GameState {
 
   constructor(private assetManager: AssetManager) {
     this.setupCamera();
-
     this.renderPipeline = new RenderPipeline(this.scene, this.camera);
-
     this.setupLights();
-
-    const envMap = this.assetManager.textures.get("hdri");
-    this.scene.environment = envMap;
-    this.scene.background = envMap;
-    this.scene.backgroundRotation = new THREE.Euler(0, -Math.PI / 8, 0);
-    this.scene.environmentRotation = new THREE.Euler(0, -Math.PI / 8, 0);
-    this.scene.environmentIntensity = 0.5;
-    this.scene.backgroundIntensity = 0.5;
-    this.scene.backgroundBlurriness = 0.3;
+    this.setupEnvMap();
 
     this.audioListener = new THREE.AudioListener();
     this.camera.add(this.audioListener);
@@ -82,17 +71,9 @@ export class GameState {
     this.cylinder = this.lock.getObjectByName(
       "lock_cylinder_lp"
     ) as THREE.Object3D;
-    console.log(this.cylinder.rotation);
     this.pick = this.setupLockpick();
     this.setupScrewdriver();
     this.scene.add(this.lock, this.pick);
-
-    // Testing
-    this.intersectDebug = new THREE.Mesh(
-      new THREE.SphereGeometry(0.005),
-      new THREE.MeshBasicMaterial({ color: "red" })
-    );
-    this.scene.add(this.intersectDebug);
 
     // Listeners
     window.addEventListener("mousemove", this.onMouseMove);
@@ -117,6 +98,17 @@ export class GameState {
     const pointLight = new THREE.PointLight(0xffffff, 0.75);
     pointLight.position.set(0.25, 0.25, 0.25);
     this.scene.add(pointLight);
+  }
+
+  private setupEnvMap() {
+    const envMap = this.assetManager.textures.get("hdri");
+    this.scene.environment = envMap;
+    this.scene.background = envMap;
+    this.scene.backgroundRotation = new THREE.Euler(0, -Math.PI / 8, 0);
+    this.scene.environmentRotation = new THREE.Euler(0, -Math.PI / 8, 0);
+    this.scene.environmentIntensity = 0.5;
+    this.scene.backgroundIntensity = 0.5;
+    this.scene.backgroundBlurriness = 0.3;
   }
 
   private setupAudio() {
@@ -249,8 +241,6 @@ export class GameState {
   }
 
   private updatePick(dt: number) {
-    this.intersectDebug.position.copy(this.intersectPoint);
-
     this.pick.rotation.z =
       Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
     this.pick.rotation.z = THREE.MathUtils.clamp(
