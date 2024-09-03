@@ -40,6 +40,7 @@ export class GameState {
   private soundMap = new Map<string, THREE.Audio>();
 
   private pointer = new THREE.Vector2();
+  private pointerDelta = new THREE.Vector2();
   private raycaster = new THREE.Raycaster();
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
@@ -111,6 +112,8 @@ export class GameState {
 
     const pickMoveSound = new THREE.Audio(audioListener);
     pickMoveSound.setBuffer(buffers.get("pick-move"));
+    pickMoveSound.loop = true;
+    pickMoveSound.play();
     this.soundMap.set("pick-move", pickMoveSound);
 
     const jamSound = new THREE.Audio(audioListener);
@@ -173,6 +176,10 @@ export class GameState {
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("mouseup", this.onMouseUp);
+    this.renderer.domElement.addEventListener(
+      "pointerleave",
+      this.onPointerLeave
+    );
     this.keyboardListener.on(" ", this.onPressSpace);
     this.keyboardListener.onRelease(" ", this.onReleaseSpace);
     this.keyboardListener.on("d", this.toggleDebugUi);
@@ -182,6 +189,10 @@ export class GameState {
     window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
+    this.renderer.domElement.addEventListener(
+      "pointerleave",
+      this.onPointerLeave
+    );
     this.keyboardListener.off(" ", this.onPressSpace);
     this.keyboardListener.offRelease(" ", this.onReleaseSpace);
     this.keyboardListener.off("d", this.toggleDebugUi);
@@ -205,6 +216,10 @@ export class GameState {
     this.updateScrewdriver(dt);
 
     this.updateCamera();
+
+    this.updateAudio();
+
+    this.pointerDelta.set(0, 0); // zero out so that we don't have small persistent deltas
 
     this.renderer.render(this.scene, this.camera);
   };
@@ -293,8 +308,15 @@ export class GameState {
   }
 
   private onMouseMove = (event: MouseEvent) => {
-    this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const ndc = {
+      x: (event.clientX / window.innerWidth) * 2 - 1,
+      y: -(event.clientY / window.innerHeight) * 2 + 1,
+    };
+
+    this.pointerDelta.set(this.pointer.x - ndc.x, this.pointer.y - ndc.y);
+
+    this.pointer.x = ndc.x;
+    this.pointer.y = ndc.y;
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
@@ -382,5 +404,23 @@ export class GameState {
     this.camera.aspect = window.innerWidth / window.innerHeight;
 
     this.camera.updateProjectionMatrix();
+  };
+
+  private updateAudio() {
+    const pickMoveSound = this.soundMap.get("pick-move")!;
+
+    const pointerLength = this.pointerDelta.lengthSq();
+    const pickMoveVolume = Math.min(
+      1,
+      Math.sqrt(this.pointerDelta.lengthSq() * 25)
+    );
+    const pitch = Math.min(1.1, 0.8 + pointerLength * 2);
+    pickMoveSound.setPlaybackRate(pitch);
+    console.log(pickMoveVolume);
+    pickMoveSound.setVolume(pickMoveVolume);
+  }
+
+  private readonly onPointerLeave = () => {
+    this.pointerDelta.set(0, 0);
   };
 }
