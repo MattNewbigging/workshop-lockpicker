@@ -36,7 +36,27 @@ export class AssetManager {
   }
 
   getLockpick() {
-    return this.models.get("lockpick") as THREE.Object3D;
+    const lockpick = this.models.get("lockpick") as THREE.Object3D;
+    const albedo = this.textures.get("lockpick-albedo");
+    const normal = this.textures.get("lockpick-normal");
+    const orm = this.textures.get("lockpick-orm");
+
+    const lockpickMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+      metalness: 1,
+    });
+
+    lockpick.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = lockpickMaterial;
+      }
+    });
+
+    return lockpick;
   }
 
   getScrewdriver() {
@@ -61,19 +81,6 @@ export class AssetManager {
     });
 
     return screwdriver;
-  }
-
-  applyModelTexture(model: THREE.Object3D, textureName: string) {
-    const texture = this.textures.get(textureName);
-    if (!texture) {
-      return;
-    }
-
-    model.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material.map = texture;
-      }
-    });
   }
 
   load(): Promise<void> {

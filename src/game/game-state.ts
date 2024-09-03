@@ -81,7 +81,7 @@ export class GameState {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    this.renderer.toneMappingExposure = 1.25;
     const root = document.getElementById("root");
     root?.appendChild(this.renderer.domElement);
     window.addEventListener("resize", this.onCanvasResize);
