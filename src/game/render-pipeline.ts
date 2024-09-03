@@ -19,7 +19,7 @@ export class RenderPipeline {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    this.renderer.toneMappingExposure = 1.25;
     this.renderer.shadowMap.enabled = true;
 
     // Add canvas to dom
