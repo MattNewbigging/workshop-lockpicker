@@ -1,30 +1,15 @@
 import * as THREE from "three";
-import { RenderPipeline } from "./render-pipeline";
+import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 /**
- * - entry animation; brings up the pick and screwdriver
- * - pick movement
- * - apply force:
- * -- both screwdriver and pick wiggle but don't turn
- * --- if you do this too much, pick breaks
- * ---- new pick entry anim
- * -- scredriver and lock inner turns while pick remains still
- *    (parent driver to inner lock, just rotate inner lock)
- *
- *
- * Lockpicking logic:
- *
- * - need determine the size of the pick zone; hardcode sizes
- * - do on scale of 0 to PI, subtract PI later when clamping rotation
- * - left side = random number between 0 and PI subtract pick zone size
- * - right side = left side + size
- * - just checking if pick is > left side && < right side
- *
- * - debug:
- * - use cylinder geometries!
+ * States:
+ * - Entry animation; brings screwdriver and lockpick up to the lock (cannot interact while playing)
+ * - Gameplay; player tries to pick the lock
+ * - Success; lock is picked! Stop receiving input, after brief delay reset by playing entry anim
  */
 
 export enum LockLevel {
@@ -44,77 +29,73 @@ const HALF_PI = Math.PI / 2;
 export class GameState {
   private keyboardListener = new KeyboardListener();
 
-  private renderPipeline: RenderPipeline;
+  private renderer = new THREE.WebGLRenderer({ antialias: true });
   private clock = new THREE.Clock();
-
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera();
+
+  private camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
   private cameraLength = 0.25;
   private cameraTarget = new THREE.Vector3();
   private cameraDir = new THREE.Vector3();
 
-  private audioListener: THREE.AudioListener;
   private soundMap = new Map<string, THREE.Audio>();
-  private pickMoveTimeout = 0;
 
   private pointer = new THREE.Vector2();
   private raycaster = new THREE.Raycaster();
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
 
-  private lock: THREE.Object3D;
+  private currentLock!: Lock;
   private cylinder!: THREE.Object3D;
-  private pick: THREE.Object3D;
-  private screwdriver?: THREE.Object3D;
+  private lockpick!: THREE.Object3D;
+  private screwdriver!: THREE.Object3D;
   private applyForce = false;
-
-  private currentLock: Lock;
 
   private showDebugUi = false;
   private debugObjects: THREE.Mesh[] = [];
 
+  private entryAnimations = new TWEEN.Group();
+
+  private orbitControls: OrbitControls;
+
   constructor(private assetManager: AssetManager) {
-    this.setupCamera();
-    this.renderPipeline = new RenderPipeline(this.scene, this.camera);
-    this.setupLights();
-    this.setupEnvMap();
-
-    this.audioListener = new THREE.AudioListener();
-    this.camera.add(this.audioListener);
+    this.setupScene();
     this.setupAudio();
+    this.setupObjects();
+    this.setupEntryAnimations();
 
-    // Lock
-    this.lock = this.setupLock();
-    this.cylinder = this.lock.getObjectByName(
-      "lock_cylinder_lp"
-    ) as THREE.Object3D;
-    this.pick = this.setupLockpick();
-    this.setupScrewdriver();
-    this.scene.add(this.lock, this.pick);
+    this.orbitControls = new OrbitControls(
+      this.camera,
+      this.renderer.domElement
+    );
+    this.orbitControls.enableDamping = true;
 
-    this.currentLock = this.getNextLock();
-
-    // Start the entry animation
+    this.startNextLock();
 
     // Start game
     this.update();
   }
 
-  private setupCamera() {
-    this.camera.fov = 35;
-    this.camera.far = 500;
-    this.camera.near = 0.1;
-    this.camera.position.set(0, 0.01, 0.2);
-  }
+  private setupScene() {
+    // Renderer
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.5;
+    const root = document.getElementById("root");
+    root?.appendChild(this.renderer.domElement);
+    window.addEventListener("resize", this.onCanvasResize);
+    this.onCanvasResize();
 
-  private setupLights() {
-    // Fill light
+    // Camera
+    this.camera.position.set(0, 0.01, 0.2);
+
+    // Lights
     const pointLight = new THREE.PointLight(0xffffff, 0.75);
     pointLight.position.set(0.25, 0.25, 0.25);
     this.scene.add(pointLight);
-  }
 
-  private setupEnvMap() {
+    // Environment map
     const envMap = this.assetManager.textures.get("hdri");
     this.scene.environment = envMap;
     this.scene.background = envMap;
@@ -128,25 +109,71 @@ export class GameState {
   private setupAudio() {
     const buffers = this.assetManager.audioBuffers;
 
-    const pickMoveSound = new THREE.Audio(this.audioListener);
+    const audioListener = new THREE.AudioListener();
+    this.camera.add(audioListener);
+
+    const pickMoveSound = new THREE.Audio(audioListener);
     pickMoveSound.setBuffer(buffers.get("pick-move"));
     this.soundMap.set("pick-move", pickMoveSound);
 
-    const jamSound = new THREE.Audio(this.audioListener);
+    const jamSound = new THREE.Audio(audioListener);
     jamSound.setBuffer(buffers.get("jam"));
     this.soundMap.set("jam", jamSound);
 
-    const unlockSound = new THREE.Audio(this.audioListener);
+    const unlockSound = new THREE.Audio(audioListener);
     unlockSound.setBuffer(buffers.get("unlock"));
     this.soundMap.set("unlock", unlockSound);
 
-    const pickBreakSound = new THREE.Audio(this.audioListener);
+    const pickBreakSound = new THREE.Audio(audioListener);
     pickBreakSound.setBuffer(buffers.get("pick-break"));
     this.soundMap.set("pick-break", pickBreakSound);
 
-    const pickingSound = new THREE.Audio(this.audioListener);
+    const pickingSound = new THREE.Audio(audioListener);
     pickingSound.setBuffer(buffers.get("picking"));
     this.soundMap.set("picking", pickingSound);
+  }
+
+  private setupObjects() {
+    const lock = this.assetManager.getLock();
+    this.cylinder = lock.getObjectByName("lock_cylinder_lp") as THREE.Object3D;
+    this.lockpick = this.assetManager.getLockpick();
+    this.screwdriver = this.assetManager.getScrewdriver();
+
+    this.screwdriver.rotateY(Math.PI / 3);
+    this.screwdriver.rotation.z = -1.5;
+
+    // Make cylinder parent of screwdriver so they rotate together
+    this.cylinder.add(this.screwdriver);
+
+    addGui(this.screwdriver);
+    console.log(this.screwdriver.position);
+
+    this.scene.add(lock, this.lockpick, this.screwdriver);
+  }
+
+  private setupEntryAnimations() {
+    const duration = 2000;
+
+    const screwdriver = new TWEEN.Tween(this.screwdriver).to(
+      {
+        position: { x: -0.002, y: -0.007, z: 0.012 },
+        // rotation: { x: 0, y: Math.PI / 3, z: -1.5 },
+      },
+      duration
+    );
+
+    const pick = new TWEEN.Tween(this.lockpick).to(
+      {
+        position: { x: 0, y: 0, z: 0.004 },
+        rotation: { x: 0, y: 0, z: 0 },
+      },
+      duration
+    );
+
+    // Since they all have the same duration, can use any for the onComplete
+    screwdriver.onComplete(() => this.onEntryAnimCompleted());
+
+    this.entryAnimations.add(screwdriver, pick);
   }
 
   private playAudio(name: string) {
@@ -212,17 +239,15 @@ export class GameState {
 
     screwdriver.rotateY(Math.PI / 3);
     screwdriver.rotation.z = -1.5;
+
     this.scene.add(screwdriver);
 
-    this.screwdriver = screwdriver;
-
     // Parent to inner lock
-    const inner = this.lock.getObjectByName("lock_cylinder_lp");
-    inner?.add(screwdriver);
-    screwdriver.position.set(-0.2, -0.5, 1);
+
+    return screwdriver;
   }
 
-  private getNextLock(): Lock {
+  private getRandomLock(): Lock {
     // Same lock level for now
     const level = LockLevel.EASY;
     const maxSize = Math.PI;
@@ -256,10 +281,35 @@ export class GameState {
     this.keyboardListener.off("d", this.toggleDebugUi);
   }
 
+  private startNextLock() {
+    // Stop listeners for now, reset any values
+    this.removeListeners();
+    this.applyForce = false;
+
+    // Generate the next lock
+    this.currentLock = this.getRandomLock();
+
+    // Move objects offscreen, then animate them back in for the new lock
+    //his.screwdriver.position.set(5, -5, 5);
+    this.lockpick.position.set(0, 0.05, 0.01);
+
+    // When these finish, onEntryAnimCompleted will be called
+    this.entryAnimations.getAll().forEach((tween) => tween.start());
+  }
+
+  private onEntryAnimCompleted() {
+    // Can now re-add listeners
+    this.addListeners();
+  }
+
   private update = () => {
     requestAnimationFrame(this.update);
 
     const dt = this.clock.getDelta();
+
+    this.orbitControls.update();
+
+    this.entryAnimations.update();
 
     this.updatePick(dt);
 
@@ -269,7 +319,7 @@ export class GameState {
 
     //this.updateCamera();
 
-    this.renderPipeline.render(dt);
+    this.renderer.render(this.scene, this.camera);
   };
 
   private updateCamera() {
@@ -289,16 +339,13 @@ export class GameState {
   }
 
   private updatePick(dt: number) {
-    this.pick.rotation.z =
+    this.lockpick.rotation.z =
       Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
-    this.pick.rotation.z = THREE.MathUtils.clamp(
-      this.pick.rotation.z,
+    this.lockpick.rotation.z = THREE.MathUtils.clamp(
+      this.lockpick.rotation.z,
       -HALF_PI,
       HALF_PI
     );
-
-    // Update move timers
-    this.pickMoveTimeout -= dt;
   }
 
   private updateScrewdriver(dt: number) {
@@ -320,7 +367,7 @@ export class GameState {
 
     // We're applying force, but is the pick in the pick zone?
     // The pick moves left-to-right from halfPi to -halfPi
-    const pickRot = this.pick.rotation.z;
+    const pickRot = this.lockpick.rotation.z;
     const afterStart = pickRot < HALF_PI - this.currentLock.start;
     const beforeEnd =
       pickRot > HALF_PI - this.currentLock.start - this.currentLock.length;
@@ -337,6 +384,12 @@ export class GameState {
     if (this.cylinder.rotation.z === -HALF_PI) {
       this.playAudio("unlock");
       // No longer applying force/listening for that input
+      this.applyForce = false;
+      this.removeListeners();
+
+      // Reset lock rotation
+      this.cylinder.rotation.z = 0;
+
       // Play the entry animation
     }
   }
@@ -348,11 +401,6 @@ export class GameState {
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
     this.raycaster.ray.intersectPlane(this.castPlane, this.intersectPoint);
-
-    if (this.pickMoveTimeout <= 0) {
-      this.pickMoveTimeout = 5;
-      this.playAudio("pick-move");
-    }
   };
 
   private onMouseDown = (event: MouseEvent) => {
@@ -428,4 +476,14 @@ export class GameState {
     this.debugObjects.forEach((obj) => this.scene.remove(obj));
     this.debugObjects = [];
   }
+
+  private onCanvasResize = () => {
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+
+    this.camera.updateProjectionMatrix();
+  };
 }

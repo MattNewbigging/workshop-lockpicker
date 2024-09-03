@@ -11,6 +11,58 @@ export class AssetManager {
 
   private loadingManager = new THREE.LoadingManager();
 
+  getLock() {
+    const lock = this.models.get("lock") as THREE.Object3D;
+    const albedo = this.textures.get("lock-albedo");
+    const normal = this.textures.get("lock-normal");
+    const orm = this.textures.get("lock-orm");
+
+    const lockMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+      metalness: 1,
+    });
+
+    lock.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = lockMaterial;
+      }
+    });
+
+    return lock;
+  }
+
+  getLockpick() {
+    return this.models.get("lockpick") as THREE.Object3D;
+  }
+
+  getScrewdriver() {
+    const screwdriver = this.models.get("screwdriver") as THREE.Object3D;
+    const albedo = this.textures.get("screw-albedo");
+    const normal = this.textures.get("screw-normal");
+    const orm = this.textures.get("screw-orm");
+
+    const screwMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+      metalness: 1,
+    });
+
+    screwdriver.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = screwMaterial;
+      }
+    });
+
+    return screwdriver;
+  }
+
   applyModelTexture(model: THREE.Object3D, textureName: string) {
     const texture = this.textures.get(textureName);
     if (!texture) {
@@ -57,6 +109,7 @@ export class AssetManager {
     const screwdriver = new URL("/models/screwdriver.fbx", import.meta.url)
       .href;
     fbxLoader.load(screwdriver, (group) => {
+      group.scale.multiplyScalar(0.01);
       this.models.set("screwdriver", group);
     });
   }
