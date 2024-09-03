@@ -1,22 +1,34 @@
 import "./game-screen.scss";
 import "../../app/app.scss";
 import React from "react";
+import { observer } from "mobx-react-lite";
+import { GameState } from "../../game/game-state";
 
-export const GameScreen: React.FC = () => {
-  return (
-    <div className="game-screen">
-      <div className="bottom-left">
-        <p className="align-left">Lockpick Skill</p>
-        <p>100</p>
-        <p className="align-left">Bobby Pins</p>
-        <p>90</p>
-        <p className="align-left">Lock Level</p>
-        <p>Average</p>
-      </div>
+interface GameScreenProps {
+  gameState: GameState;
+}
 
-      <div className="bottom-right">
-        <p>Show debug UI D)</p>
+export const GameScreen: React.FC<GameScreenProps> = observer(
+  ({ gameState }) => {
+    const points = gameState.points;
+    const picks = gameState.lockpicks;
+    const level = gameState.currentLock.level;
+
+    return (
+      <div className="game-screen">
+        <div className="bottom-left">
+          <p className="align-left">Lockpick Points</p>
+          <p>{points}</p>
+          <p className="align-left">Bobby Pins</p>
+          <p>{picks}</p>
+          <p className="align-left">Lock Level</p>
+          <p>{level}</p>
+        </div>
+
+        <div className="bottom-right">
+          <p>Show debug UI D)</p>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);

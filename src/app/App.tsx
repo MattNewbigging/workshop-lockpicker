@@ -13,11 +13,12 @@ interface AppProps {
 
 export const App: React.FC<AppProps> = observer(({ appState }) => {
   const started = appState.started;
+  const gameState = appState.gameState;
 
   return (
     <>
       {!started && <LoadingScreen appState={appState} />}
-      {started && <GameScreen />}
+      {gameState && <GameScreen gameState={gameState} />}
     </>
   );
 });
