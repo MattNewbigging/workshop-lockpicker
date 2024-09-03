@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
@@ -54,23 +53,21 @@ export class GameState {
   private showDebugUi = false;
   private debugObjects: THREE.Mesh[] = [];
 
-  private entryAnimations = new TWEEN.Group();
-
-  private orbitControls: OrbitControls;
+  // private orbitControls: OrbitControls;
 
   constructor(private assetManager: AssetManager) {
     this.setupScene();
     this.setupAudio();
     this.setupObjects();
-    this.setupEntryAnimations();
 
-    this.orbitControls = new OrbitControls(
-      this.camera,
-      this.renderer.domElement
-    );
-    this.orbitControls.enableDamping = true;
+    this.currentLock = this.getRandomLock();
+    this.addListeners();
 
-    this.startNextLock();
+    // this.orbitControls = new OrbitControls(
+    //   this.camera,
+    //   this.renderer.domElement
+    // );
+    // this.orbitControls.enableDamping = true;
 
     // Start game
     this.update();
@@ -139,133 +136,21 @@ export class GameState {
     this.lockpick = this.assetManager.getLockpick();
     this.screwdriver = this.assetManager.getScrewdriver();
 
+    this.lockpick.position.z = -0.03;
+
     this.screwdriver.rotateY(Math.PI / 3);
     this.screwdriver.rotation.z = -1.5;
+    this.screwdriver.position.set(-0.001, -0.006, 0.01);
 
     // Make cylinder parent of screwdriver so they rotate together
     this.cylinder.add(this.screwdriver);
 
-    addGui(this.screwdriver);
-    console.log(this.screwdriver.position);
-
     this.scene.add(lock, this.lockpick, this.screwdriver);
-  }
-
-  private setupEntryAnimations() {
-    const duration = 2000;
-
-    const screwdriver = new TWEEN.Tween(this.screwdriver).to(
-      {
-        position: { x: -0.002, y: -0.007, z: 0.012 },
-        // rotation: { x: 0, y: Math.PI / 3, z: -1.5 },
-      },
-      duration
-    );
-
-    const pick = new TWEEN.Tween(this.lockpick).to(
-      {
-        position: { x: 0, y: 0, z: 0.004 },
-        rotation: { x: 0, y: 0, z: 0 },
-      },
-      duration
-    );
-
-    // Since they all have the same duration, can use any for the onComplete
-    screwdriver.onComplete(() => this.onEntryAnimCompleted());
-
-    this.entryAnimations.add(screwdriver, pick);
   }
 
   private playAudio(name: string) {
     const sound = this.soundMap.get(name);
     sound?.stop().play();
-  }
-
-  private setupLock() {
-    const { models, textures } = this.assetManager;
-
-    const lock = models.get("lock") as THREE.Object3D;
-    const albedo = textures.get("lock-albedo");
-    const normal = textures.get("lock-normal");
-    const orm = textures.get("lock-orm");
-
-    const lockMaterial = new THREE.MeshPhysicalMaterial({
-      map: albedo,
-      normalMap: normal,
-      aoMap: orm,
-      roughnessMap: orm,
-      metalnessMap: orm,
-      metalness: 1,
-    });
-
-    lock.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material = lockMaterial;
-      }
-    });
-
-    return lock;
-  }
-
-  private setupLockpick() {
-    const { models, textures } = this.assetManager;
-
-    const lockpick = models.get("lockpick") as THREE.Object3D;
-    const albedo = textures.get("lockpick-albedo");
-    const normal = textures.get("lockpick-normal");
-    const orm = textures.get("lockpick-orm");
-
-    const lockpickMaterial = new THREE.MeshPhysicalMaterial({
-      map: albedo,
-      normalMap: normal,
-      aoMap: orm,
-      roughnessMap: orm,
-      metalnessMap: orm,
-      metalness: 1,
-    });
-
-    lockpick.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material = lockpickMaterial;
-      }
-    });
-
-    lockpick.position.z = -0.02;
-
-    return lockpick;
-  }
-
-  private setupScrewdriver() {
-    const { models, textures } = this.assetManager;
-
-    const screwdriver = models.get("screwdriver") as THREE.Object3D;
-    const albedo = textures.get("screw-albedo");
-    const normal = textures.get("screw-normal");
-    const orm = textures.get("screw-orm");
-
-    const screwMaterial = new THREE.MeshPhysicalMaterial({
-      map: albedo,
-      normalMap: normal,
-      aoMap: orm,
-      roughnessMap: orm,
-      metalnessMap: orm,
-      metalness: 1,
-    });
-
-    screwdriver.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material = screwMaterial;
-      }
-    });
-
-    screwdriver.rotateY(Math.PI / 3);
-    screwdriver.rotation.z = -1.5;
-
-    this.scene.add(screwdriver);
-
-    // Parent to inner lock
-
-    return screwdriver;
   }
 
   private getRandomLock(): Lock {
@@ -302,35 +187,12 @@ export class GameState {
     this.keyboardListener.off("d", this.toggleDebugUi);
   }
 
-  private startNextLock() {
-    // Stop listeners for now, reset any values
-    this.removeListeners();
-    this.applyForce = false;
-
-    // Generate the next lock
-    this.currentLock = this.getRandomLock();
-
-    // Move objects offscreen, then animate them back in for the new lock
-    //his.screwdriver.position.set(5, -5, 5);
-    this.lockpick.position.set(0, 0.05, 0.01);
-
-    // When these finish, onEntryAnimCompleted will be called
-    this.entryAnimations.getAll().forEach((tween) => tween.start());
-  }
-
-  private onEntryAnimCompleted() {
-    // Can now re-add listeners
-    this.addListeners();
-  }
-
   private update = () => {
     requestAnimationFrame(this.update);
 
     const dt = this.clock.getDelta();
 
-    this.orbitControls.update();
-
-    this.entryAnimations.update();
+    //this.orbitControls.update();
 
     this.updatePick(dt);
 
@@ -338,7 +200,7 @@ export class GameState {
 
     this.updateScrewdriver(dt);
 
-    //this.updateCamera();
+    this.updateCamera();
 
     this.renderer.render(this.scene, this.camera);
   };
