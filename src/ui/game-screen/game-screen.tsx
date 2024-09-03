@@ -10,15 +10,17 @@ interface GameScreenProps {
 
 export const GameScreen: React.FC<GameScreenProps> = observer(
   ({ gameState }) => {
+    const points = gameState.points;
+    const picks = gameState.lockpicks;
     const level = gameState.currentLock.level;
 
     return (
       <div className="game-screen">
         <div className="bottom-left">
-          <p className="align-left">Lockpick Skill</p>
-          <p>100</p>
+          <p className="align-left">Lockpick Points</p>
+          <p>{points}</p>
           <p className="align-left">Bobby Pins</p>
-          <p>90</p>
+          <p>{picks}</p>
           <p className="align-left">Lock Level</p>
           <p>{level}</p>
         </div>

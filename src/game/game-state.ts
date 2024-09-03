@@ -31,6 +31,7 @@ const HALF_PI = Math.PI / 2;
 export class GameState {
   @observable currentLock!: Lock;
   @observable lockpicks = 100;
+  @observable points = 0;
 
   private keyboardListener = new KeyboardListener();
 
@@ -302,14 +303,28 @@ export class GameState {
 
     // Have we unlocked it?
     if (this.cylinder.rotation.z === -HALF_PI) {
-      this.playAudio("unlock");
-      // No longer applying force/listening for that input
-      this.applyForce = false;
-      this.removeListeners();
-
-      // Reset lock rotation
-      this.cylinder.rotation.z = 0;
+      this.onUnlock();
     }
+  }
+
+  private onUnlock() {
+    // Award
+    const index = Object.values(LockLevel).indexOf(this.currentLock.level);
+    this.points += index * 10;
+    this.playAudio("unlock");
+
+    // Stop receiving input for a second while we reset
+    this.removeListeners();
+    this.hideDebugUI();
+    this.applyForce = false;
+    // this.cylinder.rotation.z = 0;
+    // this.lockpick.rotation.z = 0;
+
+    // Give it a second, then start another one
+    setTimeout(() => {
+      this.currentLock = this.getRandomLock();
+      this.addListeners();
+    }, 1000);
   }
 
   private onMouseMove = (event: MouseEvent) => {
