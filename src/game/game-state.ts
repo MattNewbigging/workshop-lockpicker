@@ -99,9 +99,9 @@ export class GameState {
     const envMap = this.assetManager.textures.get("hdri");
     this.scene.environment = envMap;
     this.scene.background = envMap;
-    this.scene.backgroundRotation = new THREE.Euler(0, -Math.PI / 8, 0);
-    this.scene.environmentRotation = new THREE.Euler(0, -Math.PI / 8, 0);
-    this.scene.environmentIntensity = 0.5;
+    this.scene.backgroundRotation = new THREE.Euler(0, -Math.PI / 6, 0);
+    this.scene.environmentRotation = new THREE.Euler(0, -Math.PI / 6, 0);
+    this.scene.environmentIntensity = 1;
     this.scene.backgroundIntensity = 0.5;
     this.scene.backgroundBlurriness = 0.3;
   }
@@ -208,8 +208,29 @@ export class GameState {
   }
 
   private setupLockpick() {
-    const lockpick = this.assetManager.models.get("lockpick");
-    lockpick.position.z = 0.004;
+    const { models, textures } = this.assetManager;
+
+    const lockpick = models.get("lockpick") as THREE.Object3D;
+    const albedo = textures.get("lockpick-albedo");
+    const normal = textures.get("lockpick-normal");
+    const orm = textures.get("lockpick-orm");
+
+    const lockpickMaterial = new THREE.MeshPhysicalMaterial({
+      map: albedo,
+      normalMap: normal,
+      aoMap: orm,
+      roughnessMap: orm,
+      metalnessMap: orm,
+      metalness: 1,
+    });
+
+    lockpick.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = lockpickMaterial;
+      }
+    });
+
+    lockpick.position.z = -0.02;
 
     return lockpick;
   }

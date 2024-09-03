@@ -101,9 +101,10 @@ export class AssetManager {
       this.models.set("lock", group);
     });
 
-    const lockpick = new URL("/models/lockpick.glb", import.meta.url).href;
-    gltfLoader.load(lockpick, (gltf) => {
-      this.models.set("lockpick", gltf.scene);
+    const lockpick = new URL("/models/lockpick.fbx", import.meta.url).href;
+    fbxLoader.load(lockpick, (group) => {
+      group.scale.multiplyScalar(0.01);
+      this.models.set("lockpick", group);
     });
 
     const screwdriver = new URL("/models/screwdriver.fbx", import.meta.url)
@@ -172,6 +173,31 @@ export class AssetManager {
     ).href;
     loader.load(screwdriverOrm, (texture) => {
       this.textures.set("screw-orm", texture);
+    });
+
+    const lockpickAlbedo = new URL(
+      "/textures/lockpick_LP_DefaultMaterial_albedo.png",
+      import.meta.url
+    ).href;
+    loader.load(lockpickAlbedo, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      this.textures.set("lockpick-albedo", texture);
+    });
+
+    const lockpickNormal = new URL(
+      "/textures/lockpick_LP_DefaultMaterial_normal.png",
+      import.meta.url
+    ).href;
+    loader.load(lockpickNormal, (texture) => {
+      this.textures.set("lockpick-normal", texture);
+    });
+
+    const lockpickOrm = new URL(
+      "/textures/lockpick_LP_DefaultMaterial_ORM.png",
+      import.meta.url
+    ).href;
+    loader.load(lockpickOrm, (texture) => {
+      this.textures.set("lockpick-orm", texture);
     });
   }
 
