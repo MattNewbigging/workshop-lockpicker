@@ -84,13 +84,12 @@ export class AssetManager {
   }
 
   load(): Promise<void> {
-    const gltfLoader = new GLTFLoader(this.loadingManager);
     const fbxLoader = new FBXLoader(this.loadingManager);
     const textureLoader = new THREE.TextureLoader(this.loadingManager);
     const rgbeLoader = new RGBELoader(this.loadingManager);
     const audioLoader = new THREE.AudioLoader(this.loadingManager);
 
-    this.loadModels(gltfLoader, fbxLoader);
+    this.loadModels(fbxLoader);
     this.loadTextures(textureLoader, rgbeLoader);
     this.loadAudio(audioLoader);
 
@@ -101,7 +100,7 @@ export class AssetManager {
     });
   }
 
-  private loadModels(gltfLoader: GLTFLoader, fbxLoader: FBXLoader) {
+  private loadModels(fbxLoader: FBXLoader) {
     const lock = new URL("/models/lock.fbx", import.meta.url).href;
     fbxLoader.load(lock, (group) => {
       group.scale.multiplyScalar(0.01);
@@ -117,7 +116,6 @@ export class AssetManager {
     const screwdriver = new URL("/models/screwdriver.fbx", import.meta.url)
       .href;
     fbxLoader.load(screwdriver, (group) => {
-      group.scale.multiplyScalar(0.01);
       this.models.set("screwdriver", group);
     });
   }

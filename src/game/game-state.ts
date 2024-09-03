@@ -140,12 +140,12 @@ export class GameState {
 
     this.screwdriver.rotateY(Math.PI / 3);
     this.screwdriver.rotation.z = -1.5;
-    this.screwdriver.position.set(-0.001, -0.006, 0.01);
+    this.screwdriver.position.set(-0.1, -0.6, 1);
 
     // Make cylinder parent of screwdriver so they rotate together
     this.cylinder.add(this.screwdriver);
 
-    this.scene.add(lock, this.lockpick, this.screwdriver);
+    this.scene.add(lock, this.lockpick);
   }
 
   private playAudio(name: string) {
@@ -191,12 +191,16 @@ export class GameState {
     requestAnimationFrame(this.update);
 
     const dt = this.clock.getDelta();
+    const elapsed = this.clock.getElapsedTime();
 
     //this.orbitControls.update();
 
-    this.updatePick(dt);
+    // Cannot move pick while turning lock
+    if (!this.applyForce) {
+      this.updatePick(dt);
+    }
 
-    this.updateLock(dt);
+    this.updateLock(dt, elapsed);
 
     this.updateScrewdriver(dt);
 
@@ -209,8 +213,8 @@ export class GameState {
     const dir = this.cameraDir;
 
     dir.x = -Math.sin(this.pointer.x);
-    dir.y = -Math.sin(this.pointer.y);
-    dir.multiplyScalar(0.1);
+    dir.y = Math.sin(this.pointer.y);
+    dir.multiplyScalar(0.05);
 
     dir.z = 1.0;
     dir.normalize();
@@ -239,7 +243,7 @@ export class GameState {
     this.screwdriver.rotation.x = this.pointer.y * -0.1;
   }
 
-  private updateLock(dt: number) {
+  private updateLock(dt: number, elapsed: number) {
     // If not applying any force, return lock to normal position
     if (!this.applyForce) {
       const newRot = this.cylinder.rotation.z + dt * 2;
@@ -261,6 +265,19 @@ export class GameState {
       this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
     } else {
       // Not in the pick zone, wiggle the lock
+      const sin1 = Math.sin(elapsed * 30) * 0.1;
+      const sin2 = Math.sin(elapsed * 41) * 0.1;
+      const sin3 = Math.sin(elapsed * 27) * 0.1;
+      const freq = sin1 + sin2 + sin3;
+
+      this.cylinder.rotation.z += freq * 0.1;
+
+      const sin4 = Math.sin(elapsed * 30 + 3) * 0.1;
+      const sin5 = Math.sin(elapsed * 41 + 3) * 0.1;
+      const sin6 = Math.sin(elapsed * 27 + 3) * 0.1;
+      const freq2 = sin4 + sin5 + sin6;
+
+      this.lockpick.rotation.z += freq2 * 0.1;
     }
 
     // Have we unlocked it?
@@ -272,8 +289,6 @@ export class GameState {
 
       // Reset lock rotation
       this.cylinder.rotation.z = 0;
-
-      // Play the entry animation
     }
   }
 
@@ -308,7 +323,6 @@ export class GameState {
 
   private toggleDebugUi = () => {
     this.showDebugUi = !this.showDebugUi;
-
     this.showDebugUi ? this.showDebugUI() : this.hideDebugUI();
   };
 
@@ -330,7 +344,7 @@ export class GameState {
     });
     const bgCylinder = new THREE.Mesh(bgGeom, bgMat);
     bgCylinder.rotateX(Math.PI / 2);
-    bgCylinder.position.z = -0.051;
+    bgCylinder.position.z = -0.055;
 
     // Pick zone cylinder
     const pzGeom = new THREE.CylinderGeometry(
@@ -349,7 +363,7 @@ export class GameState {
     });
     const pzCylinder = new THREE.Mesh(pzGeom, pzMat);
     pzCylinder.rotateX(Math.PI / 2);
-    pzCylinder.position.z = -0.049;
+    pzCylinder.position.z = -0.054;
 
     this.debugObjects.push(bgCylinder, pzCylinder);
     this.scene.add(bgCylinder, pzCylinder);
