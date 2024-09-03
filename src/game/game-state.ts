@@ -1,5 +1,4 @@
 import * as THREE from "three";
-
 import { RenderPipeline } from "./render-pipeline";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
@@ -28,6 +27,18 @@ import { KeyboardListener } from "../listeners/keyboard-listener";
  * - use cylinder geometries!
  */
 
+export enum LockLevel {
+  EASY,
+  AVERAGE,
+  HARD,
+}
+
+export interface Lock {
+  level: LockLevel;
+  start: number;
+  length: number;
+}
+
 export class GameState {
   private keyboardListener = new KeyboardListener();
 
@@ -53,8 +64,12 @@ export class GameState {
   private cylinder!: THREE.Object3D;
   private pick: THREE.Object3D;
   private screwdriver?: THREE.Object3D;
-
   private applyForce = false;
+
+  private currentLock: Lock;
+
+  private showDebugUi = false;
+  private debugObjects: THREE.Mesh[] = [];
 
   constructor(private assetManager: AssetManager) {
     this.setupCamera();
@@ -75,12 +90,15 @@ export class GameState {
     this.setupScrewdriver();
     this.scene.add(this.lock, this.pick);
 
+    this.currentLock = this.getNextLock();
+
     // Listeners
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("mouseup", this.onMouseUp);
     this.keyboardListener.on(" ", this.onPressSpace);
     this.keyboardListener.onRelease(" ", this.onReleaseSpace);
+    this.keyboardListener.on("d", this.toggleDebugUi);
 
     // Start game
     this.update();
@@ -208,6 +226,22 @@ export class GameState {
     screwdriver.position.set(-0.2, -0.5, 1);
   }
 
+  private getNextLock(): Lock {
+    // Same lock level for now
+    const level = LockLevel.EASY;
+    const maxSize = Math.PI;
+    const size = Math.PI / 2;
+
+    const start = Math.random() * (maxSize - size);
+    const length = size;
+
+    return {
+      level,
+      start,
+      length,
+    };
+  }
+
   private update = () => {
     requestAnimationFrame(this.update);
 
@@ -306,4 +340,58 @@ export class GameState {
   private onReleaseSpace = () => {
     this.applyForce = false;
   };
+
+  private toggleDebugUi = () => {
+    this.showDebugUi = !this.showDebugUi;
+
+    this.showDebugUi ? this.showDebugUI() : this.hideDebugUI();
+  };
+
+  private showDebugUI() {
+    // Background cylinder
+    const bgGeom = new THREE.CylinderGeometry(
+      0.05,
+      0.05,
+      0.1,
+      16,
+      1,
+      false,
+      -Math.PI / 2,
+      -Math.PI
+    );
+    const bgMat = new THREE.MeshBasicMaterial({
+      color: "blue",
+      side: THREE.DoubleSide,
+    });
+    const bgCylinder = new THREE.Mesh(bgGeom, bgMat);
+    bgCylinder.rotateX(Math.PI / 2);
+    bgCylinder.position.z = -0.051;
+
+    // Pick zone cylinder
+    const pzGeom = new THREE.CylinderGeometry(
+      0.05,
+      0.05,
+      0.1,
+      16,
+      1,
+      false,
+      -Math.PI / 2 - this.currentLock.start,
+      -this.currentLock.length // negative because going clockwise
+    );
+    const pzMat = new THREE.MeshBasicMaterial({
+      color: "green",
+      side: THREE.DoubleSide,
+    });
+    const pzCylinder = new THREE.Mesh(pzGeom, pzMat);
+    pzCylinder.rotateX(Math.PI / 2);
+    pzCylinder.position.z = -0.049;
+
+    this.debugObjects.push(bgCylinder, pzCylinder);
+    this.scene.add(bgCylinder, pzCylinder);
+  }
+
+  private hideDebugUI() {
+    this.debugObjects.forEach((obj) => this.scene.remove(obj));
+    this.debugObjects = [];
+  }
 }
