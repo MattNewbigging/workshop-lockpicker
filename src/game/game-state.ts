@@ -19,6 +19,13 @@ export interface Lock {
   length: number;
 }
 
+export enum LockState {
+  RESET,
+  TURN,
+  JAM,
+  UNLOCK,
+}
+
 const HALF_PI = Math.PI / 2;
 
 export class GameState {
@@ -52,6 +59,9 @@ export class GameState {
 
   private showDebugUi = false;
   private debugObjects: THREE.Mesh[] = [];
+
+  private lockpickLife = 2;
+  private lockState = LockState.RESET;
 
   // private orbitControls: OrbitControls;
 
@@ -220,23 +230,117 @@ export class GameState {
 
     //this.orbitControls.update();
 
-    // Cannot move pick while turning lock
-    if (!this.applyForce) {
-      this.updatePick(dt);
+    this.updateLockState();
+
+    switch (this.lockState) {
+      case LockState.RESET:
+        // Lock returns to upright position
+        this.resetLock(dt);
+        // Pick can follow mouse
+        this.moveLockpick();
+        break;
+      case LockState.JAM:
+        // Lock and pick wiggle
+        this.performJamWiggle(elapsed);
+        break;
+      case LockState.TURN:
+        // Lock turns, pick does not move
+        this.turnLock(dt);
+        break;
+      case LockState.UNLOCK:
+        this.onUnlock();
+        break;
     }
 
-    this.updateLock(dt, elapsed);
-
-    this.updateScrewdriver(dt);
-
+    // The screwdriver and camera always move with the mouse movement
+    this.moveScrewdriver();
     this.updateCamera();
-
-    this.updateAudio();
 
     this.pointerDelta.set(0, 0); // zero out so that we don't have small persistent deltas
 
     this.renderer.render(this.scene, this.camera);
   };
+
+  private updateLockState() {
+    // If the user isn't applying any force, the lock resets
+    if (!this.applyForce) {
+      this.lockState = LockState.RESET;
+
+      return;
+    }
+
+    // If the pick isn't inside the pick zone, the lock jams
+    if (!this.isInsidePickZone()) {
+      this.lockState = LockState.JAM;
+
+      return;
+    }
+
+    // Have we turned the lock enough to open it?
+    const turnedEnough = this.cylinder.rotation.z === -HALF_PI;
+    this.lockState = turnedEnough ? LockState.UNLOCK : LockState.TURN;
+  }
+
+  private isInsidePickZone() {
+    const pickRot = this.lockpick.rotation.z;
+    const afterStart = pickRot < HALF_PI - this.currentLock.start;
+    const beforeEnd =
+      pickRot > HALF_PI - this.currentLock.start - this.currentLock.length;
+
+    return afterStart && beforeEnd;
+  }
+
+  private resetLock(dt: number) {
+    // Returns the lock to its upright position
+    const newRot = this.cylinder.rotation.z + dt * 2;
+    this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+  }
+
+  private turnLock(dt: number) {
+    const newRot = this.cylinder.rotation.z - dt * 0.8;
+    this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+  }
+
+  private moveLockpick() {
+    // Follow mouse movement
+    this.lockpick.rotation.z =
+      Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
+    this.lockpick.rotation.z = THREE.MathUtils.clamp(
+      this.lockpick.rotation.z,
+      -HALF_PI,
+      HALF_PI
+    );
+
+    // Play pick move sound
+    const pickMoveSound = this.soundMap.get("pick-move")!;
+
+    const pointerLength = this.pointerDelta.lengthSq();
+    const pickMoveVolume = Math.min(
+      1,
+      Math.sqrt(this.pointerDelta.lengthSq() * 25)
+    );
+    const pitch = Math.min(1.1, 0.8 + pointerLength);
+    pickMoveSound.setPlaybackRate(pitch);
+    pickMoveSound.setVolume(pickMoveVolume);
+  }
+
+  private performJamWiggle(elapsed: number) {
+    // Lock wiggle
+    const sin1 = Math.sin(elapsed * 30) * 0.1;
+    const sin2 = Math.sin(elapsed * 41) * 0.1;
+    const sin3 = Math.sin(elapsed * 27) * 0.1;
+    const freq = sin1 + sin2 + sin3;
+
+    this.cylinder.rotation.z += freq * 0.1;
+
+    // Pick uses additional waves to move similarly but not identically
+    const sin4 = Math.sin(elapsed * 30 + 3) * 0.1;
+    const sin5 = Math.sin(elapsed * 41 + 3) * 0.1;
+    const sin6 = Math.sin(elapsed * 27 + 3) * 0.1;
+    const freq2 = sin4 + sin5 + sin6;
+
+    this.lockpick.rotation.z += freq2 * 0.1;
+  }
 
   private updateCamera() {
     const dir = this.cameraDir;
@@ -254,65 +358,10 @@ export class GameState {
     this.camera.lookAt(this.cameraTarget);
   }
 
-  private updatePick(dt: number) {
-    this.lockpick.rotation.z =
-      Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
-    this.lockpick.rotation.z = THREE.MathUtils.clamp(
-      this.lockpick.rotation.z,
-      -HALF_PI,
-      HALF_PI
-    );
-  }
-
-  private updateScrewdriver(dt: number) {
-    if (!this.screwdriver) return;
-
+  private moveScrewdriver() {
     this.screwdriver.rotation.y = Math.PI / 4 + this.pointer.x * 0.1;
     this.screwdriver.rotation.z = Math.PI / 2 + this.pointer.y * 0.25;
     this.screwdriver.rotation.x = this.pointer.y * -0.1;
-  }
-
-  private updateLock(dt: number, elapsed: number) {
-    // If not applying any force, return lock to normal position
-    if (!this.applyForce) {
-      const newRot = this.cylinder.rotation.z + dt * 2;
-      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
-
-      return;
-    }
-
-    // We're applying force, but is the pick in the pick zone?
-    // The pick moves left-to-right from halfPi to -halfPi
-    const pickRot = this.lockpick.rotation.z;
-    const afterStart = pickRot < HALF_PI - this.currentLock.start;
-    const beforeEnd =
-      pickRot > HALF_PI - this.currentLock.start - this.currentLock.length;
-
-    if (afterStart && beforeEnd) {
-      // In the pick zone, turn the lock
-      const newRot = this.cylinder.rotation.z - dt * 0.8;
-      this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
-    } else {
-      // Not in the pick zone, wiggle the lock
-      const sin1 = Math.sin(elapsed * 30) * 0.1;
-      const sin2 = Math.sin(elapsed * 41) * 0.1;
-      const sin3 = Math.sin(elapsed * 27) * 0.1;
-      const freq = sin1 + sin2 + sin3;
-
-      this.cylinder.rotation.z += freq * 0.1;
-
-      const sin4 = Math.sin(elapsed * 30 + 3) * 0.1;
-      const sin5 = Math.sin(elapsed * 41 + 3) * 0.1;
-      const sin6 = Math.sin(elapsed * 27 + 3) * 0.1;
-      const freq2 = sin4 + sin5 + sin6;
-
-      this.lockpick.rotation.z += freq2 * 0.1;
-    }
-
-    // Have we unlocked it?
-    if (this.cylinder.rotation.z === -HALF_PI) {
-      this.onUnlock();
-    }
   }
 
   private onUnlock() {
@@ -325,8 +374,6 @@ export class GameState {
     this.removeListeners();
     this.hideDebugUI();
     this.applyForce = false;
-    // this.cylinder.rotation.z = 0;
-    // this.lockpick.rotation.z = 0;
 
     // Give it a second, then start another one
     setTimeout(() => {
@@ -433,19 +480,6 @@ export class GameState {
 
     this.camera.updateProjectionMatrix();
   };
-
-  private updateAudio() {
-    const pickMoveSound = this.soundMap.get("pick-move")!;
-
-    const pointerLength = this.pointerDelta.lengthSq();
-    const pickMoveVolume = Math.min(
-      1,
-      Math.sqrt(this.pointerDelta.lengthSq() * 25)
-    );
-    const pitch = Math.min(1.1, 0.8 + pointerLength);
-    pickMoveSound.setPlaybackRate(pitch);
-    pickMoveSound.setVolume(pickMoveVolume);
-  }
 
   private readonly onPointerLeave = () => {
     this.pointerDelta.set(0, 0);
