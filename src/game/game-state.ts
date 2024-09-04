@@ -5,13 +5,6 @@ import { KeyboardListener } from "../listeners/keyboard-listener";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { makeAutoObservable, observable } from "mobx";
 
-/**
- * States:
- * - Entry animation; brings screwdriver and lockpick up to the lock (cannot interact while playing)
- * - Gameplay; player tries to pick the lock
- * - Success; lock is picked! Stop receiving input, after brief delay reset by playing entry anim
- */
-
 export enum LockLevel {
   VERY_EASY = "Very Easy",
   EASY = "Easy",
