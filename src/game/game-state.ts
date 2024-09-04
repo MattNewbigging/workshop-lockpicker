@@ -2,7 +2,7 @@ import * as THREE from "three";
 import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
-import { KeyboardListener } from "../listeners/keyboard-listener";
+import { KeyboardListener } from "./keyboard-listener";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { makeAutoObservable, observable } from "mobx";
 
@@ -255,7 +255,7 @@ export class GameState {
     );
     this.keyboardListener.on(" ", this.onPressSpace);
     this.keyboardListener.onRelease(" ", this.onReleaseSpace);
-    this.keyboardListener.on("d", this.toggleDebugUi);
+    this.keyboardListener.on("d", this.onToggleDebugUi);
   }
 
   private removeListeners() {
@@ -268,7 +268,7 @@ export class GameState {
     );
     this.keyboardListener.off(" ", this.onPressSpace);
     this.keyboardListener.offRelease(" ", this.onReleaseSpace);
-    this.keyboardListener.off("d", this.toggleDebugUi);
+    this.keyboardListener.off("d", this.onToggleDebugUi);
   }
 
   private update = () => {
@@ -289,7 +289,6 @@ export class GameState {
         this.moveLockpick();
         break;
       case LockState.JAM:
-        console.log(this.applyForce);
         // Lock and pick wiggle
         this.performJamWiggle(elapsed);
         // Pick lifetime reduced
@@ -532,7 +531,7 @@ export class GameState {
     this.applyForce = false;
   };
 
-  private toggleDebugUi = () => {
+  private onToggleDebugUi = () => {
     this.showDebugUi = !this.showDebugUi;
     this.showDebugUi ? this.showDebugUI() : this.hideDebugUI();
   };

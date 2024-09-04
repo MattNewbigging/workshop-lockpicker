@@ -26,7 +26,7 @@ export const GameScreen: React.FC<GameScreenProps> = observer(
         </div>
 
         <div className="bottom-right">
-          <p>Turn lock LMB)</p>
+          <p>Turn lock LMB) Spacebar)</p>
           <p>Show debug UI D)</p>
         </div>
       </div>
