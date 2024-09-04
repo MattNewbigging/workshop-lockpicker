@@ -3,51 +3,53 @@ import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { KeyboardListener } from "./keyboard-listener";
 import { makeAutoObservable, observable } from "mobx";
-import { Lock, LockState, PickState, getRandomLock } from "./models";
+import { CONFIG, Lock, LockState, PickState, getRandomLock } from "./models";
 
 const HALF_PI = Math.PI / 2;
 
 export class GameState {
+  // Observable state for UI
   @observable currentLock!: Lock;
   @observable lockpicks = 100;
   @observable points = 0;
 
-  private keyboardListener = new KeyboardListener();
-
+  // Scene
   private renderer = new THREE.WebGLRenderer({ antialias: true });
   private clock = new THREE.Clock();
   private scene = new THREE.Scene();
 
   private camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
-  private cameraLength = 0.25;
-  private cameraTarget = new THREE.Vector3();
   private cameraDir = new THREE.Vector3();
 
   private soundMap = new Map<string, THREE.Audio>();
 
+  // 3D Objects
+  private cylinder!: THREE.Object3D;
+  private pick!: THREE.Object3D;
+  private screwdriver!: THREE.Object3D;
+
+  // Interaction
+  private keyboardListener = new KeyboardListener();
   private pointer = new THREE.Vector2();
   private pointerDelta = new THREE.Vector2();
   private raycaster = new THREE.Raycaster();
   private castPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1));
   private intersectPoint = new THREE.Vector3();
 
-  private cylinder!: THREE.Object3D;
-  private lockpick!: THREE.Object3D;
-  private screwdriver!: THREE.Object3D;
-  private applyForce = false;
-
+  // Debug
   private showDebugUi = false;
   private debugObjects: THREE.Mesh[] = [];
 
-  private lockpickLife = 2;
+  // Gane logic
+  private gameOver = false;
+  private applyForce = false;
+  private pickLife = 2;
   private lockState = LockState.RESET;
-
-  private pickFallAnim: TWEEN.Tween;
-  private pickEnterAnim: TWEEN.Tween;
-
   private pickState = PickState.IN_USE;
 
-  private gameOver = false;
+  // Animations
+  private pickFallAnim: TWEEN.Tween;
+  private pickEnterAnim: TWEEN.Tween;
 
   constructor(private assetManager: AssetManager) {
     makeAutoObservable(this);
@@ -127,25 +129,29 @@ export class GameState {
   private setupObjects() {
     const lock = this.assetManager.getLock();
     this.cylinder = lock.getObjectByName("lock_cylinder_lp") as THREE.Object3D;
-    this.lockpick = this.assetManager.getLockpick();
+    this.pick = this.assetManager.getPick();
     this.screwdriver = this.assetManager.getScrewdriver();
 
-    this.lockpick.position.z = -0.03;
+    this.pick.position.z = CONFIG.PICK.POSITION.z;
 
-    this.screwdriver.rotateY(Math.PI / 3);
-    this.screwdriver.rotation.z = -1.5;
-    this.screwdriver.position.set(-0.1, -0.6, 1);
+    this.screwdriver.rotation.y = CONFIG.SCREWDRIVER.ROTATION.y;
+    this.screwdriver.rotation.z = CONFIG.SCREWDRIVER.ROTATION.z;
+    this.screwdriver.position.set(
+      CONFIG.SCREWDRIVER.POSITION.x,
+      CONFIG.SCREWDRIVER.POSITION.y,
+      CONFIG.SCREWDRIVER.POSITION.z
+    );
 
     // Make cylinder parent of screwdriver so they rotate together
     this.cylinder.add(this.screwdriver);
 
-    this.scene.add(lock, this.lockpick);
+    this.scene.add(lock, this.pick);
   }
 
   private setupPickFallAnimation() {
-    const pickFall = new TWEEN.Tween(this.lockpick).to(
+    const pickFall = new TWEEN.Tween(this.pick).to(
       {
-        position: { y: -1 },
+        position: { y: CONFIG.PICK.FALL_TO },
       },
       1000
     );
@@ -159,10 +165,12 @@ export class GameState {
   }
 
   private setupPickEnterAnimation() {
-    const tween = new TWEEN.Tween(this.lockpick)
+    const { POSITION } = CONFIG.PICK;
+
+    const tween = new TWEEN.Tween(this.pick)
       .to(
         {
-          position: { x: 0, y: 0, z: -0.03 },
+          position: { x: POSITION.x, y: POSITION.y, z: POSITION.z },
         },
         1000
       )
@@ -275,7 +283,7 @@ export class GameState {
   }
 
   private isInsidePickZone() {
-    const pickRot = this.lockpick.rotation.z;
+    const pickRot = this.pick.rotation.z;
     const afterStart = pickRot < HALF_PI - this.currentLock.start;
     const beforeEnd =
       pickRot > HALF_PI - this.currentLock.start - this.currentLock.length;
@@ -285,21 +293,21 @@ export class GameState {
 
   private resetLock(dt: number) {
     // Returns the lock to its upright position
-    const newRot = this.cylinder.rotation.z + dt * 2;
+    const newRot = this.cylinder.rotation.z + dt * CONFIG.LOCK.RESET_SPEED;
     this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
   }
 
   private turnLock(dt: number) {
-    const newRot = this.cylinder.rotation.z - dt * 0.8;
+    const newRot = this.cylinder.rotation.z - dt * CONFIG.LOCK.TURN_SPEED;
     this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
   }
 
   private moveLockpick() {
     // Follow mouse movement
-    this.lockpick.rotation.z =
+    this.pick.rotation.z =
       Math.atan2(this.intersectPoint.x, this.intersectPoint.y) * -1;
-    this.lockpick.rotation.z = THREE.MathUtils.clamp(
-      this.lockpick.rotation.z,
+    this.pick.rotation.z = THREE.MathUtils.clamp(
+      this.pick.rotation.z,
       -HALF_PI,
       HALF_PI
     );
@@ -332,14 +340,14 @@ export class GameState {
     const sin6 = Math.sin(elapsed * 27 + 3) * 0.1;
     const freq2 = sin4 + sin5 + sin6;
 
-    this.lockpick.rotation.z += freq2 * 0.1;
+    this.pick.rotation.z += freq2 * 0.1;
   }
 
   private reducePickLife(dt: number) {
-    this.lockpickLife -= dt;
+    this.pickLife -= dt;
 
     // If this pick still has life left in it, do nothing else
-    if (this.lockpickLife > 0) {
+    if (this.pickLife > 0) {
       return;
     }
 
@@ -376,10 +384,10 @@ export class GameState {
     dir.z = 1.0;
     dir.normalize();
 
-    dir.multiplyScalar(this.cameraLength);
+    dir.multiplyScalar(0.25); // camera distance
 
     this.camera.position.copy(dir);
-    this.camera.lookAt(this.cameraTarget);
+    this.camera.lookAt(new THREE.Vector3());
   }
 
   private moveScrewdriver() {
@@ -399,8 +407,8 @@ export class GameState {
     }
 
     // Setup a new pick
-    this.lockpickLife = 2;
-    this.lockpick.position.y = 1; // falls from here
+    this.pickLife = CONFIG.PICK.LIFETIME;
+    this.pick.position.y = CONFIG.PICK.FALL_FROM;
     this.pickState = PickState.ENTER;
     this.pickEnterAnim.start();
   }
@@ -481,7 +489,7 @@ export class GameState {
       -Math.PI
     );
     const bgMat = new THREE.MeshBasicMaterial({
-      color: "blue",
+      color: "red",
       side: THREE.DoubleSide,
     });
     const bgCylinder = new THREE.Mesh(bgGeom, bgMat);

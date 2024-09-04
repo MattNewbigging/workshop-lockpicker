@@ -53,3 +53,31 @@ export function getRandomLock(): Lock {
     points,
   };
 }
+
+export const CONFIG = {
+  PICK: {
+    POSITION: {
+      x: 0,
+      y: 0,
+      z: -0.03,
+    },
+    FALL_TO: -1,
+    FALL_FROM: 1,
+    LIFETIME: 2,
+  },
+  SCREWDRIVER: {
+    POSITION: {
+      x: -0.1,
+      y: -0.6,
+      z: 1,
+    },
+    ROTATION: {
+      y: Math.PI / 3,
+      z: -1.5,
+    },
+  },
+  LOCK: {
+    RESET_SPEED: 2,
+    TURN_SPEED: 0.8,
+  },
+};

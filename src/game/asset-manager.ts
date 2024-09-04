@@ -35,13 +35,13 @@ export class AssetManager {
     return lock;
   }
 
-  getLockpick() {
-    const lockpick = this.models.get("lockpick") as THREE.Object3D;
+  getPick() {
+    const pick = this.models.get("lockpick") as THREE.Object3D;
     const albedo = this.textures.get("lockpick-albedo");
     const normal = this.textures.get("lockpick-normal");
     const orm = this.textures.get("lockpick-orm");
 
-    const lockpickMaterial = new THREE.MeshPhysicalMaterial({
+    const pickMaterial = new THREE.MeshPhysicalMaterial({
       map: albedo,
       normalMap: normal,
       aoMap: orm,
@@ -50,13 +50,13 @@ export class AssetManager {
       metalness: 1,
     });
 
-    lockpick.traverse((child) => {
+    pick.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.material = lockpickMaterial;
+        child.material = pickMaterial;
       }
     });
 
-    return lockpick;
+    return pick;
   }
 
   getScrewdriver() {
