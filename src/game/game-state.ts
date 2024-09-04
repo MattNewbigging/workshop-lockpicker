@@ -1,37 +1,9 @@
 import * as THREE from "three";
 import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
-import { addGui } from "../utils/utils";
 import { KeyboardListener } from "./keyboard-listener";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { makeAutoObservable, observable } from "mobx";
-
-export enum LockLevel {
-  VERY_EASY = "Very Easy",
-  EASY = "Easy",
-  AVERAGE = "Average",
-  HARD = "Hard",
-  VERY_HARD = "Very Hard",
-}
-
-export interface Lock {
-  level: LockLevel;
-  start: number;
-  length: number;
-}
-
-export enum LockState {
-  RESET,
-  TURN,
-  JAM,
-  UNLOCK,
-}
-
-export enum PickState {
-  ENTER,
-  IN_USE,
-  FALL,
-}
+import { Lock, LockState, PickState, getRandomLock } from "./models";
 
 const HALF_PI = Math.PI / 2;
 
@@ -77,8 +49,6 @@ export class GameState {
 
   private gameOver = false;
 
-  // private orbitControls: OrbitControls;
-
   constructor(private assetManager: AssetManager) {
     makeAutoObservable(this);
 
@@ -88,14 +58,8 @@ export class GameState {
     this.pickFallAnim = this.setupPickFallAnimation();
     this.pickEnterAnim = this.setupPickEnterAnimation();
 
-    this.currentLock = this.getRandomLock();
+    this.currentLock = getRandomLock();
     this.addListeners();
-
-    // this.orbitControls = new OrbitControls(
-    //   this.camera,
-    //   this.renderer.domElement
-    // );
-    // this.orbitControls.enableDamping = true;
 
     // Start game
     this.update();
@@ -216,35 +180,6 @@ export class GameState {
     sound?.stop().play();
   }
 
-  private getRandomLock(): Lock {
-    const rnd = Math.floor(Math.random() * 5);
-    const level = [
-      LockLevel.VERY_EASY,
-      LockLevel.EASY,
-      LockLevel.AVERAGE,
-      LockLevel.HARD,
-      LockLevel.VERY_HARD,
-    ][rnd];
-    const size = [
-      Math.PI / 4,
-      Math.PI / 7,
-      Math.PI / 10,
-      Math.PI / 20,
-      Math.PI / 36,
-    ][rnd];
-
-    const maxSize = Math.PI;
-
-    const start = Math.random() * (maxSize - size);
-    const length = size;
-
-    return {
-      level,
-      start,
-      length,
-    };
-  }
-
   private addListeners() {
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mousedown", this.onMouseDown);
@@ -276,8 +211,6 @@ export class GameState {
 
     const dt = this.clock.getDelta();
     const elapsed = this.clock.getElapsedTime();
-
-    //this.orbitControls.update();
 
     this.updateLockState();
 
@@ -479,8 +412,7 @@ export class GameState {
 
   private onUnlock() {
     // Award
-    const index = Object.values(LockLevel).indexOf(this.currentLock.level);
-    this.points += index * 10;
+    this.points += this.currentLock.points;
     this.playAudio("unlock");
 
     // Stop receiving input for a second while we reset
@@ -490,7 +422,7 @@ export class GameState {
 
     // Give it a second, then start another one
     setTimeout(() => {
-      this.currentLock = this.getRandomLock();
+      this.currentLock = getRandomLock();
       this.addListeners();
     }, 1000);
   }
