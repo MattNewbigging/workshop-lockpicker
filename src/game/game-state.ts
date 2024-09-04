@@ -61,7 +61,8 @@ export class GameState {
     this.pickEnterAnim = this.setupPickEnterAnimation();
 
     this.currentLock = getRandomLock();
-    this.addListeners();
+
+    this.onPickFallen();
 
     // Start game
     this.update();
