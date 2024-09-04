@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { addGui } from "../utils/utils";
 import { KeyboardListener } from "../listeners/keyboard-listener";
@@ -24,6 +25,12 @@ export enum LockState {
   TURN,
   JAM,
   UNLOCK,
+}
+
+export enum PickState {
+  ENTER,
+  IN_USE,
+  FALL,
 }
 
 const HALF_PI = Math.PI / 2;
@@ -63,6 +70,13 @@ export class GameState {
   private lockpickLife = 2;
   private lockState = LockState.RESET;
 
+  private pickFallAnim: TWEEN.Tween;
+  private pickEnterAnim: TWEEN.Tween;
+
+  private pickState = PickState.IN_USE;
+
+  private gameOver = false;
+
   // private orbitControls: OrbitControls;
 
   constructor(private assetManager: AssetManager) {
@@ -71,6 +85,8 @@ export class GameState {
     this.setupScene();
     this.setupAudio();
     this.setupObjects();
+    this.pickFallAnim = this.setupPickFallAnimation();
+    this.pickEnterAnim = this.setupPickEnterAnimation();
 
     this.currentLock = this.getRandomLock();
     this.addListeners();
@@ -162,6 +178,39 @@ export class GameState {
     this.scene.add(lock, this.lockpick);
   }
 
+  private setupPickFallAnimation() {
+    const pickFall = new TWEEN.Tween(this.lockpick).to(
+      {
+        position: { y: -1 },
+      },
+      1000
+    );
+    pickFall
+      .onComplete(() => {
+        this.onPickFallen();
+      })
+      .easing(TWEEN.Easing.Quadratic.In);
+
+    return pickFall;
+  }
+
+  private setupPickEnterAnimation() {
+    const tween = new TWEEN.Tween(this.lockpick)
+      .to(
+        {
+          position: { x: 0, y: 0, z: -0.03 },
+        },
+        1000
+      )
+      .easing(TWEEN.Easing.Quadratic.Out);
+
+    tween.onComplete(() => {
+      this.onPickEnter();
+    });
+
+    return tween;
+  }
+
   private playAudio(name: string) {
     const sound = this.soundMap.get(name);
     sound?.stop().play();
@@ -240,8 +289,11 @@ export class GameState {
         this.moveLockpick();
         break;
       case LockState.JAM:
+        console.log(this.applyForce);
         // Lock and pick wiggle
         this.performJamWiggle(elapsed);
+        // Pick lifetime reduced
+        this.reducePickLife(dt);
         break;
       case LockState.TURN:
         // Lock turns, pick does not move
@@ -258,12 +310,21 @@ export class GameState {
 
     this.pointerDelta.set(0, 0); // zero out so that we don't have small persistent deltas
 
+    this.updateAnimations();
+
     this.renderer.render(this.scene, this.camera);
   };
 
   private updateLockState() {
     // If the user isn't applying any force, the lock resets
     if (!this.applyForce) {
+      this.lockState = LockState.RESET;
+
+      return;
+    }
+
+    // If the user has no pick, the lock resets
+    if (this.pickState !== PickState.IN_USE) {
       this.lockState = LockState.RESET;
 
       return;
@@ -342,6 +403,37 @@ export class GameState {
     this.lockpick.rotation.z += freq2 * 0.1;
   }
 
+  private reducePickLife(dt: number) {
+    this.lockpickLife -= dt;
+
+    // If this pick still has life left in it, do nothing else
+    if (this.lockpickLife > 0) {
+      return;
+    }
+
+    // If this broken pick is currently falling, we've already entered here so we can stop
+    if (this.pickState === PickState.FALL) {
+      return;
+    }
+
+    // Pick has broken!
+    this.pickState = PickState.FALL;
+    this.lockpicks--;
+    this.playAudio("pick-break");
+    this.pickFallAnim.start();
+
+    // Have we run out of picks?
+    if (this.lockpicks === 0) {
+      console.log("game over");
+      this.gameOver = true;
+      return;
+    }
+
+    // Prevent interactions during animations
+    this.applyForce = false;
+    this.removeListeners();
+  }
+
   private updateCamera() {
     const dir = this.cameraDir;
 
@@ -362,6 +454,28 @@ export class GameState {
     this.screwdriver.rotation.y = Math.PI / 4 + this.pointer.x * 0.1;
     this.screwdriver.rotation.z = Math.PI / 2 + this.pointer.y * 0.25;
     this.screwdriver.rotation.x = this.pointer.y * -0.1;
+  }
+
+  private updateAnimations() {
+    this.pickFallAnim.update();
+    this.pickEnterAnim.update();
+  }
+
+  private onPickFallen() {
+    if (this.gameOver) {
+      return;
+    }
+
+    // Setup a new pick
+    this.lockpickLife = 2;
+    this.lockpick.position.y = 1; // falls from here
+    this.pickState = PickState.ENTER;
+    this.pickEnterAnim.start();
+  }
+
+  private onPickEnter() {
+    this.pickState = PickState.IN_USE;
+    this.addListeners();
   }
 
   private onUnlock() {
