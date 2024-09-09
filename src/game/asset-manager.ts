@@ -236,5 +236,11 @@ export class AssetManager {
 
     const picking = new URL("/audio/Lock Picking.wav", import.meta.url).href;
     loader.load(picking, (buffer) => this.audioBuffers.set("picking", buffer));
+
+    const tension = new URL(
+      "/audio/ui_lockpicking_picktension_01_lpm.wav",
+      import.meta.url
+    ).href;
+    loader.load(tension, (buffer) => this.audioBuffers.set("tension", buffer));
   }
 }

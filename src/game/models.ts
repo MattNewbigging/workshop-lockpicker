@@ -37,7 +37,7 @@ export function getRandomLock(): Lock {
     LockLevel.VERY_HARD,
   ][rnd];
 
-  const points = [4, 7, 10, 20, 36][rnd];
+  const points = [4, 6, 10, 20, 36][rnd];
 
   const size = Math.PI / points;
 

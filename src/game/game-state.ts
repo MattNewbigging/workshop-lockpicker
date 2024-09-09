@@ -125,6 +125,11 @@ export class GameState {
     const pickingSound = new THREE.Audio(audioListener);
     pickingSound.setBuffer(buffers.get("picking"));
     this.soundMap.set("picking", pickingSound);
+
+    const tensionSound = new THREE.Audio(audioListener);
+    tensionSound.setBuffer(buffers.get("tension"));
+    tensionSound.setVolume(0.75);
+    this.soundMap.set("tension", tensionSound);
   }
 
   private setupObjects() {
@@ -342,6 +347,10 @@ export class GameState {
     const freq2 = sin4 + sin5 + sin6;
 
     this.pick.rotation.z += freq2 * 0.1;
+
+    // Sound
+    const tensionSound = this.soundMap.get("tension");
+    tensionSound?.play();
   }
 
   private reducePickLife(dt: number) {
@@ -373,6 +382,7 @@ export class GameState {
     // Prevent interactions during animations
     this.applyForce = false;
     this.removeListeners();
+    this.soundMap.get("tension")?.stop();
   }
 
   private updateCamera() {
@@ -461,6 +471,7 @@ export class GameState {
   private onMouseUp = (event: MouseEvent) => {
     if (event.button === 0) {
       this.applyForce = false;
+      this.soundMap.get("tension")?.stop();
     }
   };
 
@@ -470,6 +481,7 @@ export class GameState {
 
   private onReleaseSpace = () => {
     this.applyForce = false;
+    this.soundMap.get("tension")?.stop();
   };
 
   private onToggleDebugUi = () => {
