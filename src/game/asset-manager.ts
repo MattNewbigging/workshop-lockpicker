@@ -215,14 +215,6 @@ export class AssetManager {
       this.audioBuffers.set("pick-move", buffer)
     );
 
-    const jam = new URL(
-      "/audio/Antique Lock Mechanism Movement B.wav",
-      import.meta.url
-    ).href;
-    loader.load(jam, (buffer) => {
-      this.audioBuffers.set("jam", buffer);
-    });
-
     const unlock = new URL(
       "/audio/Antique Lock Normal Unlock.wav",
       import.meta.url
@@ -242,5 +234,13 @@ export class AssetManager {
       import.meta.url
     ).href;
     loader.load(tension, (buffer) => this.audioBuffers.set("tension", buffer));
+
+    const lockTurn = new URL(
+      "/audio/ui_lockpicking_cylinderturn_04.wav",
+      import.meta.url
+    ).href;
+    loader.load(lockTurn, (buffer) =>
+      this.audioBuffers.set("lock-turn", buffer)
+    );
   }
 }

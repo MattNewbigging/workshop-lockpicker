@@ -124,12 +124,18 @@ export class GameState {
 
     const pickingSound = new THREE.Audio(audioListener);
     pickingSound.setBuffer(buffers.get("picking"));
+    pickingSound.loop = true;
     this.soundMap.set("picking", pickingSound);
 
     const tensionSound = new THREE.Audio(audioListener);
     tensionSound.setBuffer(buffers.get("tension"));
     tensionSound.setVolume(0.75);
+    tensionSound.loop = true;
     this.soundMap.set("tension", tensionSound);
+
+    const turnSound = new THREE.Audio(audioListener);
+    turnSound.setBuffer(buffers.get("lock-turn"));
+    this.soundMap.set("lock-turn", turnSound);
   }
 
   private setupObjects() {
@@ -301,11 +307,23 @@ export class GameState {
     // Returns the lock to its upright position
     const newRot = this.cylinder.rotation.z + dt * CONFIG.LOCK.RESET_SPEED;
     this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+
+    const turnSound = this.soundMap.get("picking");
+    if (turnSound?.isPlaying) {
+      turnSound?.pause();
+    }
   }
 
   private turnLock(dt: number) {
     const newRot = this.cylinder.rotation.z - dt * CONFIG.LOCK.TURN_SPEED;
     this.cylinder.rotation.z = THREE.MathUtils.clamp(newRot, -HALF_PI, 0);
+
+    const turnSound = this.soundMap.get("picking");
+    if (!turnSound?.isPlaying) {
+      turnSound?.play();
+    }
+
+    this.soundMap.get("tension")?.pause();
   }
 
   private moveLockpick() {
@@ -350,7 +368,9 @@ export class GameState {
 
     // Sound
     const tensionSound = this.soundMap.get("tension");
-    tensionSound?.play();
+    if (!tensionSound?.isPlaying) {
+      tensionSound?.play();
+    }
   }
 
   private reducePickLife(dt: number) {
@@ -382,7 +402,7 @@ export class GameState {
     // Prevent interactions during animations
     this.applyForce = false;
     this.removeListeners();
-    this.soundMap.get("tension")?.stop();
+    this.soundMap.get("tension")?.pause();
   }
 
   private updateCamera() {
@@ -471,7 +491,7 @@ export class GameState {
   private onMouseUp = (event: MouseEvent) => {
     if (event.button === 0) {
       this.applyForce = false;
-      this.soundMap.get("tension")?.stop();
+      this.soundMap.get("tension")?.pause();
     }
   };
 
@@ -481,7 +501,7 @@ export class GameState {
 
   private onReleaseSpace = () => {
     this.applyForce = false;
-    this.soundMap.get("tension")?.stop();
+    this.soundMap.get("tension")?.pause();
   };
 
   private onToggleDebugUi = () => {
