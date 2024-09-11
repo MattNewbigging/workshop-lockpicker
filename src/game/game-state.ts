@@ -133,9 +133,9 @@ export class GameState {
     tensionSound.loop = true;
     this.soundMap.set("tension", tensionSound);
 
-    const turnSound = new THREE.Audio(audioListener);
-    turnSound.setBuffer(buffers.get("lock-turn"));
-    this.soundMap.set("lock-turn", turnSound);
+    const pickEnterSound = new THREE.Audio(audioListener);
+    pickEnterSound.setBuffer(buffers.get("pick-enter"));
+    this.soundMap.set("pick-enter", pickEnterSound);
   }
 
   private setupObjects() {
@@ -445,6 +445,7 @@ export class GameState {
   }
 
   private onPickEnter() {
+    this.playAudio("pick-enter");
     this.pickState = PickState.IN_USE;
     this.addListeners();
   }
@@ -456,6 +457,7 @@ export class GameState {
 
     // Stop receiving input for a second while we reset
     this.removeListeners();
+    this.showDebugUi = false;
     this.hideDebugUI();
     this.applyForce = false;
 
