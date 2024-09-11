@@ -3,15 +3,24 @@ import * as TWEEN from "@tweenjs/tween.js";
 import { AssetManager } from "./asset-manager";
 import { KeyboardListener } from "./keyboard-listener";
 import { makeAutoObservable, observable } from "mobx";
-import { CONFIG, Lock, LockState, PickState, getRandomLock } from "./models";
+import {
+  CONFIG,
+  Lock,
+  LockLevel,
+  LockState,
+  PickState,
+  getRandomLock,
+} from "./models";
 
 const HALF_PI = Math.PI / 2;
 
 export class GameState {
   // Observable state for UI
   @observable currentLock!: Lock;
-  @observable lockpicks = 100;
+  @observable lockpicks = 2;
   @observable points = 0;
+  @observable gameOver = false;
+  completedLocks: LockLevel[] = [];
 
   // Scene
   private renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -41,7 +50,7 @@ export class GameState {
   private debugObjects: THREE.Mesh[] = [];
 
   // Gane logic
-  private gameOver = false;
+
   private applyForce = false;
   private pickLife = 2;
   private lockState = LockState.RESET;
@@ -392,17 +401,12 @@ export class GameState {
     this.playAudio("pick-break");
     this.pickFallAnim.start();
 
-    // Have we run out of picks?
-    if (this.lockpicks === 0) {
-      console.log("game over");
-      this.gameOver = true;
-      return;
-    }
-
     // Prevent interactions during animations
     this.applyForce = false;
     this.removeListeners();
     this.soundMap.get("tension")?.pause();
+
+    this.gameOver = this.lockpicks === 0;
   }
 
   private updateCamera() {
@@ -454,6 +458,7 @@ export class GameState {
     // Award
     this.points += this.currentLock.points;
     this.playAudio("unlock");
+    this.completedLocks.push(this.currentLock.level);
 
     // Stop receiving input for a second while we reset
     this.removeListeners();
