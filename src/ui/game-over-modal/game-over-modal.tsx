@@ -18,11 +18,13 @@ export const GameOverModal: React.FC<GameOverModalProps> = observer(
     const easy = locks.filter((level) => level === LockLevel.EASY).length;
     const average = locks.filter((level) => level === LockLevel.AVERAGE).length;
     const hard = locks.filter((level) => level === LockLevel.HARD).length;
-    const veryHard = locks.filter((level) => level === LockLevel.VERY_HARD);
+    const veryHard = locks.filter(
+      (level) => level === LockLevel.VERY_HARD
+    ).length;
 
     return (
       <div className="game-over-modal">
-        <div>Game Over!</div>
+        <div className="header">Game Over!</div>
 
         <div className="summary">
           <p>Points</p>
@@ -39,7 +41,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = observer(
           <p>{veryHard}</p>
         </div>
 
-        <div>Play Again</div>
+        <div className="restart-button" onClick={gameState.restartGame}>
+          Play Again
+        </div>
       </div>
     );
   }

@@ -64,6 +64,7 @@ export const CONFIG = {
     FALL_TO: -1,
     FALL_FROM: 1,
     LIFETIME: 2,
+    MAX: 10,
   },
   SCREWDRIVER: {
     POSITION: {

@@ -17,7 +17,7 @@ const HALF_PI = Math.PI / 2;
 export class GameState {
   // Observable state for UI
   @observable currentLock!: Lock;
-  @observable lockpicks = 2;
+  @observable lockpicks = CONFIG.PICK.MAX;
   @observable points = 0;
   @observable gameOver = false;
   completedLocks: LockLevel[] = [];
@@ -76,6 +76,17 @@ export class GameState {
     // Start game
     this.update();
   }
+
+  restartGame = () => {
+    // Reset the game
+    this.lockpicks = CONFIG.PICK.MAX;
+    this.points = 0;
+    this.completedLocks = [];
+
+    this.gameOver = false;
+    this.currentLock = getRandomLock();
+    this.onPickFallen();
+  };
 
   private setupScene() {
     // Renderer
